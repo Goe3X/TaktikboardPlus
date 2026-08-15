@@ -49,21 +49,31 @@
     transition:background .45s ease;
   }
   @media (prefers-reduced-motion:reduce){
-    .rahmen,.token,.pfeil-gross,.ziel{transition:none !important}
+    .rahmen,.token,.pfeil-gross{transition:none !important}
   }
 
+  .kopf{padding:.3em 0 .45em;text-align:center}
   .status{
-    display:flex;align-items:center;justify-content:center;gap:.6em;
-    padding:.35em 0 .5em;
-    font-size:clamp(19px,3.4vmin,34px);
+    display:flex;align-items:center;justify-content:center;gap:.5em;
+    font-size:clamp(14px,2.2vmin,22px);
     letter-spacing:.02em;
     text-transform:uppercase;
+    opacity:.7;
   }
   .status .marke{
     width:.85em;height:.85em;border-radius:50%;
     background:var(--aktiv);
     border:.14em solid rgba(255,255,255,.85);
   }
+  /* Der Aufgabentext ist für dich zum Vorlesen — deshalb groß und ruhig. */
+  .aufgabe{
+    font-size:clamp(20px,3.6vmin,38px);
+    line-height:1.15;
+    margin-top:.15em;
+    padding:0 .5em;
+    transition:opacity .3s ease;
+  }
+  .aufgabe.geloest{opacity:.45}
 
   .eisflaeche{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
   svg{width:100%;height:100%;display:block}
@@ -73,7 +83,6 @@
   .token circle{stroke:#fff;stroke-width:5}
   .du-ring{fill:none;stroke:#fff;stroke-width:6;opacity:.9}
   .puls{fill:none;stroke:#fff;stroke-width:8;opacity:0}
-  .ziel{transition:opacity .35s ease}
   .pfeil-gross{transition:transform .55s cubic-bezier(.34,1.1,.5,1), fill .45s ease}
 
   .steuerung{
@@ -108,7 +117,10 @@
 <body>
 <div class="rahmen" id="rahmen">
 
-  <div class="status"><span class="marke"></span><span id="statusText">Wir haben den Puck</span></div>
+  <div class="kopf">
+    <div class="status"><span class="marke"></span><span id="statusText">Wir haben den Puck</span></div>
+    <div class="aufgabe" id="aufgabeText">Fahr nach vorne und biete dich an!</div>
+  </div>
 
   <div class="eisflaeche">
     <svg id="board" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" aria-label="Eisfläche">
@@ -139,13 +151,8 @@
         <rect x="868" y="235" width="46" height="130" rx="14" fill="var(--linie-rot)"/>
       </g>
 
-      <!-- Zielzone für "Du" -->
-      <g id="ziel" class="ziel">
-        <circle id="zielKreis" cx="700" cy="300" r="72" fill="none" stroke="var(--wir)"
-                stroke-width="9" stroke-dasharray="24 20" opacity=".85"/>
-      </g>
-
       <g id="spieler"></g>
+      <g id="konfetti"></g>
     </svg>
   </div>
 
@@ -164,8 +171,8 @@
   const gruppe   = document.getElementById('spieler');
   const rahmen   = document.getElementById('rahmen');
   const statusEl = document.getElementById('statusText');
-  const zielKreis= document.getElementById('zielKreis');
-  const zielG    = document.getElementById('ziel');
+  const aufgabeEl= document.getElementById('aufgabeText');
+  const konfettiG= document.getElementById('konfetti');
   const pfeilG   = document.getElementById('pfeilGross');
 
   const FARBE = {
@@ -176,19 +183,28 @@
   };
   function getCSS(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
-  // Zwei Formationen: eine mit Puck, eine ohne.
+  // Zwei Formationen. start = wo er anfängt, ziel = wo er hin soll.
+  // Die beiden dürfen NIE gleich sein, sonst gibt es nichts zu tun.
   const AUFSTELLUNG = {
     wir: {
-      du:   {x:700, y:300},
-      mate: [{x:610, y:120},{x:560, y:480}],
-      geg:  [{x:810, y:210},{x:820, y:400},{x:470, y:300}],
-      puck: {x:700, y:300, an:'du'}
+      // Puck bei uns: er steht hinten und soll mit nach vorne.
+      start: {x:280, y:430},
+      ziel:  {x:700, y:300},
+      mate:  [{x:610, y:120},{x:560, y:480}],
+      geg:   [{x:810, y:210},{x:820, y:400},{x:470, y:300}],
+      puckAn:'geg0-nein',
+      aufgabe:'Wir haben den Puck! Fahr nach vorne und biete dich an.',
+      lob:'Super! Vorne hilft man mit.'
     },
     gegner: {
-      du:   {x:300, y:300},
-      mate: [{x:380, y:140},{x:360, y:465}],
-      geg:  [{x:520, y:300},{x:430, y:150},{x:450, y:455}],
-      puck: {x:520, y:300, an:'geg0'}
+      // Puck beim Gegner: er steht vorne und muss zurück vors eigene Tor.
+      start: {x:730, y:180},
+      ziel:  {x:300, y:300},
+      mate:  [{x:380, y:140},{x:360, y:465}],
+      geg:   [{x:520, y:300},{x:430, y:150},{x:450, y:455}],
+      puckAn:'geg0',
+      aufgabe:'Der Gegner hat den Puck! Fahr zurück vor dein Tor.',
+      lob:'Stark! Du hilfst hinten mit.'
     }
   };
 
@@ -247,14 +263,18 @@
 
     document.documentElement.style.setProperty('--aktiv', farbe);
     document.documentElement.style.setProperty('--aktiv-tief', tief);
-    statusEl.textContent = istWir ? 'Wir haben den Puck' : 'Sie haben den Puck';
+    statusEl.textContent = istWir ? 'Wir haben den Puck' : 'Gegner hat den Puck';
+    aufgabeEl.textContent = a.aufgabe;
+    aufgabeEl.classList.remove('geloest');
 
-    setze(du, a.du);
+    setze(du, a.start);
+    pos.x = a.start.x; pos.y = a.start.y;
     a.mate.forEach((p,i)=> setze(mates[i], p));
     a.geg.forEach((p,i)=> setze(gegner[i], p));
 
-    // Puck neben den Spieler legen, der ihn hat
-    const halter = a.puck.an === 'du' ? a.du : a.geg[0];
+    // Puck neben den Spieler legen, der ihn hat.
+    // Bei "wir" hat ihn ein Mitspieler, nicht er selbst — er soll sich ja anbieten.
+    const halter = istWir ? a.mate[0] : a.geg[0];
     setze(puck, {x: halter.x + (istWir ? 44 : -44), y: halter.y + 42});
 
     // Riesenpfeil dreht sich: nach vorne oder zurück
@@ -262,11 +282,8 @@
     pfeilG.setAttribute('transform', istWir ? 'translate(0,0)' : 'translate(1000,600) rotate(180)');
     meinPfeil.setAttribute('transform', istWir ? 'translate(86,0)' : 'translate(-86,0) rotate(180)');
 
-    zielKreis.setAttribute('cx', a.du.x);
-    zielKreis.setAttribute('cy', a.du.y);
-    zielKreis.setAttribute('stroke', farbe);
     geschafft = false;
-    zielG.style.opacity = 0;          // erst zeigen, wenn er den Spieler bewegt
+    while (konfettiG.firstChild) konfettiG.removeChild(konfettiG.firstChild);
   }
 
   function wechsle(){
@@ -288,7 +305,6 @@
     zieht = true;
     du.classList.add('zieht');
     du.setPointerCapture(ev.pointerId);
-    zielG.style.opacity = geschafft ? 0 : 1;
     ev.preventDefault();
   });
 
@@ -310,21 +326,55 @@
   du.addEventListener('pointercancel', loslassen);
 
   function pruefe(){
-    const ziel = AUFSTELLUNG[zustand].du;
-    const d = Math.hypot(pos.x - ziel.x, pos.y - ziel.y);
-    if(d < 110){
-      setze(du, ziel);
-      zielG.style.opacity = 0;
+    if(geschafft) return;
+    const a = AUFSTELLUNG[zustand];
+    // Ohne sichtbaren Kreis muss die Trefferzone großzügig sein.
+    const d = Math.hypot(pos.x - a.ziel.x, pos.y - a.ziel.y);
+    if(d < 170){
+      setze(du, a.ziel);
+      pos.x = a.ziel.x; pos.y = a.ziel.y;
       geschafft = true;
+      aufgabeEl.textContent = a.lob;
+      aufgabeEl.classList.add('geloest');
       jubel();
     }
   }
 
   function jubel(){
+    const ziel = AUFSTELLUNG[zustand].ziel;
+
+    // Ring stößt sich ab
     puls.animate(
-      [{transform:'scale(1)', opacity:.95},{transform:'scale(2)', opacity:0}],
-      {duration:600, easing:'ease-out'}
+      [{transform:'scale(1)', opacity:.95},{transform:'scale(2.4)', opacity:0}],
+      {duration:700, easing:'ease-out'}
     );
+    // Spieler hüpft kurz
+    du.animate(
+      [{transform:'translate('+ziel.x+'px,'+ziel.y+'px) scale(1)'},
+       {transform:'translate('+ziel.x+'px,'+ziel.y+'px) scale(1.35)'},
+       {transform:'translate('+ziel.x+'px,'+ziel.y+'px) scale(1)'}],
+      {duration:520, easing:'ease-out'}
+    );
+
+    // Sterne fliegen nach außen
+    const farben = ['#F2A413','#FFFFFF','#FFD874','#2B5FA8'];
+    for(let i=0; i<14; i++){
+      const winkel = (Math.PI*2/14)*i + Math.random()*.4;
+      const weite  = 130 + Math.random()*110;
+      const s = svgEl('path', {
+        d:'M0 -13 L3.8 -4.2 L13.2 -4.2 L5.7 1.6 L8.5 10.5 L0 5.2 L-8.5 10.5 L-5.7 1.6 L-13.2 -4.2 L-3.8 -4.2 Z',
+        fill: farben[i % farben.length],
+        transform:'translate('+ziel.x+','+ziel.y+')'
+      });
+      konfettiG.appendChild(s);
+      const anim = s.animate([
+        {transform:'translate('+ziel.x+'px,'+ziel.y+'px) scale(.4) rotate(0deg)', opacity:1},
+        {transform:'translate('+(ziel.x+Math.cos(winkel)*weite)+'px,'+
+                                (ziel.y+Math.sin(winkel)*weite)+'px) scale(1.5) rotate('+
+                                (Math.random()*540-270)+'deg)', opacity:0}
+      ], {duration:750 + Math.random()*350, easing:'cubic-bezier(.2,.7,.4,1)'});
+      anim.onfinish = ()=> s.remove();
+    }
   }
 
   // Tastatur: Pfeiltasten bewegen den eigenen Spieler
@@ -338,7 +388,6 @@
     pos.y = Math.max(70, Math.min(530, t[1] + m[1]*schritt));
     du.classList.add('zieht');
     setze(du, pos);
-    zielG.style.opacity = 1;
     clearTimeout(window.__kbTimer);
     window.__kbTimer = setTimeout(()=>{ du.classList.remove('zieht'); pruefe(); }, 220);
   });
