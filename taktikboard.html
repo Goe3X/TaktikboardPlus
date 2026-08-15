@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Taktikboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --eis:#EDF4F8;
+    --eis-tief:#D7E5EE;
+    --bande:#16212B;
+    --linie-blau:#2B5FA8;
+    --linie-rot:#C92F3C;
+    --wir:#F2A413;
+    --wir-tief:#B87703;
+    --gegner:#6B3FA0;
+    --gegner-tief:#4A2977;
+    --aktiv:var(--wir);
+    --aktiv-tief:var(--wir-tief);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bande);
+    font-family:"Baloo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-weight:800;
+    color:#fff;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+
+  /* Die Bande leuchtet in der Farbe des Teams, das den Puck hat. */
+  .rahmen{
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    padding:clamp(8px,1.6vmin,18px);
+    background:var(--aktiv-tief);
+    transition:background .45s ease;
+  }
+  @media (prefers-reduced-motion:reduce){
+    .rahmen,.token,.pfeil-gross,.ziel{transition:none !important}
+  }
+
+  .status{
+    display:flex;align-items:center;justify-content:center;gap:.6em;
+    padding:.35em 0 .5em;
+    font-size:clamp(19px,3.4vmin,34px);
+    letter-spacing:.02em;
+    text-transform:uppercase;
+  }
+  .status .marke{
+    width:.85em;height:.85em;border-radius:50%;
+    background:var(--aktiv);
+    border:.14em solid rgba(255,255,255,.85);
+  }
+
+  .eisflaeche{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+  svg{width:100%;height:100%;display:block}
+
+  .token{cursor:grab;transition:transform .5s cubic-bezier(.34,1.2,.5,1)}
+  .token.zieht{transition:none;cursor:grabbing}
+  .token circle{stroke:#fff;stroke-width:5}
+  .du-ring{fill:none;stroke:#fff;stroke-width:6;opacity:.9}
+  .puls{fill:none;stroke:#fff;stroke-width:8;opacity:0}
+  .ziel{transition:opacity .35s ease}
+  .pfeil-gross{transition:transform .55s cubic-bezier(.34,1.1,.5,1), fill .45s ease}
+
+  .steuerung{
+    display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vmin,32px);
+    padding:clamp(8px,1.6vmin,16px) 0 clamp(4px,1vmin,10px);
+  }
+  .puck-knopf{
+    width:clamp(84px,15vmin,150px);height:clamp(84px,15vmin,150px);
+    border-radius:50%;
+    border:clamp(5px,.9vmin,9px) solid #fff;
+    background:#0C1319;
+    color:#fff;
+    font:inherit;
+    font-size:clamp(13px,2.1vmin,22px);
+    line-height:1.05;
+    text-transform:uppercase;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15em;
+    box-shadow:0 clamp(5px,1vmin,10px) 0 rgba(0,0,0,.45);
+    cursor:pointer;
+  }
+  .puck-knopf:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
+  .puck-knopf .wechsel{font-size:1.5em;line-height:1}
+  .neu{
+    background:transparent;border:3px solid rgba(255,255,255,.45);
+    color:rgba(255,255,255,.85);font:inherit;font-size:clamp(13px,1.9vmin,19px);
+    text-transform:uppercase;padding:.55em 1.1em;border-radius:999px;cursor:pointer;
+  }
+  .neu:active{background:rgba(255,255,255,.14)}
+  button:focus-visible{outline:4px solid #fff;outline-offset:4px}
+</style>
+</head>
+<body>
+<div class="rahmen" id="rahmen">
+
+  <div class="status"><span class="marke"></span><span id="statusText">Wir haben den Puck</span></div>
+
+  <div class="eisflaeche">
+    <svg id="board" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" aria-label="Eisfläche">
+      <defs>
+        <clipPath id="eisClip"><rect x="10" y="10" width="980" height="580" rx="120"/></clipPath>
+      </defs>
+
+      <!-- Eis -->
+      <rect x="10" y="10" width="980" height="580" rx="120" fill="var(--eis)" stroke="#fff" stroke-width="10"/>
+      <g clip-path="url(#eisClip)">
+        <!-- Riesenpfeil: die Eisfläche selbst zeigt die Richtung -->
+        <g id="pfeilGross" class="pfeil-gross" fill="var(--wir)" opacity=".16">
+          <path d="M 180 260 H 640 V 190 L 830 300 L 640 410 V 340 H 180 Z"/>
+        </g>
+        <!-- Markierungen -->
+        <line x1="500" y1="10" x2="500" y2="590" stroke="var(--linie-rot)" stroke-width="8" opacity=".5"/>
+        <circle cx="500" cy="300" r="70" fill="none" stroke="var(--linie-blau)" stroke-width="7" opacity=".5"/>
+        <circle cx="500" cy="300" r="12" fill="var(--linie-rot)" opacity=".6"/>
+        <line x1="150" y1="10" x2="150" y2="590" stroke="var(--linie-rot)" stroke-width="7" opacity=".45"/>
+        <line x1="850" y1="10" x2="850" y2="590" stroke="var(--linie-rot)" stroke-width="7" opacity=".45"/>
+        <path d="M 150 210 A 90 90 0 0 1 150 390 Z" fill="var(--linie-blau)" opacity=".16"/>
+        <path d="M 850 210 A 90 90 0 0 0 850 390 Z" fill="var(--linie-blau)" opacity=".16"/>
+      </g>
+
+      <!-- Tore -->
+      <g stroke="#fff" stroke-width="6">
+        <rect x="86" y="235" width="46" height="130" rx="14" fill="var(--linie-rot)"/>
+        <rect x="868" y="235" width="46" height="130" rx="14" fill="var(--linie-rot)"/>
+      </g>
+
+      <!-- Zielzone für "Du" -->
+      <g id="ziel" class="ziel">
+        <circle id="zielKreis" cx="700" cy="300" r="72" fill="none" stroke="var(--wir)"
+                stroke-width="9" stroke-dasharray="24 20" opacity=".85"/>
+      </g>
+
+      <g id="spieler"></g>
+    </svg>
+  </div>
+
+  <div class="steuerung">
+    <button class="neu" id="neuKnopf" type="button">Von vorne</button>
+    <button class="puck-knopf" id="puckKnopf" type="button" aria-label="Puck wechseln">
+      <span class="wechsel" aria-hidden="true">⇄</span>
+      <span>Puck</span>
+    </button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const svg      = document.getElementById('board');
+  const gruppe   = document.getElementById('spieler');
+  const rahmen   = document.getElementById('rahmen');
+  const statusEl = document.getElementById('statusText');
+  const zielKreis= document.getElementById('zielKreis');
+  const zielG    = document.getElementById('ziel');
+  const pfeilG   = document.getElementById('pfeilGross');
+
+  const FARBE = {
+    wir:     getCSS('--wir'),
+    wirTief: getCSS('--wir-tief'),
+    geg:     getCSS('--gegner'),
+    gegTief: getCSS('--gegner-tief')
+  };
+  function getCSS(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+  // Zwei Formationen: eine mit Puck, eine ohne.
+  const AUFSTELLUNG = {
+    wir: {
+      du:   {x:700, y:300},
+      mate: [{x:610, y:120},{x:560, y:480}],
+      geg:  [{x:810, y:210},{x:820, y:400},{x:470, y:300}],
+      puck: {x:700, y:300, an:'du'}
+    },
+    gegner: {
+      du:   {x:300, y:300},
+      mate: [{x:380, y:140},{x:360, y:465}],
+      geg:  [{x:520, y:300},{x:430, y:150},{x:450, y:455}],
+      puck: {x:520, y:300, an:'geg0'}
+    }
+  };
+
+  let zustand = 'wir';
+  let geschafft = false;
+
+  // --- Spielfiguren bauen ---------------------------------------------------
+  function token(id, r, fill, extra){
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','token');
+    g.setAttribute('id', id);
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('r', r); c.setAttribute('fill', fill);
+    g.appendChild(c);
+    if (extra) g.appendChild(extra);
+    gruppe.appendChild(g);
+    return g;
+  }
+  function stern(){
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d','M0 -26 L7.6 -8.4 L26.5 -8.4 L11.5 3.2 L17 21 L0 10.5 L-17 21 L-11.5 3.2 L-26.5 -8.4 L-7.6 -8.4 Z');
+    p.setAttribute('fill','#fff');
+    return p;
+  }
+
+  const gegner = AUFSTELLUNG.wir.geg.map((_,i)=> token('geg'+i, 40, FARBE.geg));
+  const mates  = AUFSTELLUNG.wir.mate.map((_,i)=> token('mate'+i, 40, FARBE.wir));
+
+  const du = token('du', 54, FARBE.wir, stern());
+  const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  ring.setAttribute('r',66); ring.setAttribute('class','du-ring'); du.appendChild(ring);
+  const puls = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  puls.setAttribute('r',66); puls.setAttribute('class','puls'); du.appendChild(puls);
+
+  // Richtungspfeil am eigenen Spieler
+  const meinPfeil = document.createElementNS('http://www.w3.org/2000/svg','g');
+  meinPfeil.innerHTML = '<path d="M -8 -14 L 26 0 L -8 14 L -2 0 Z" fill="#fff" stroke="'+
+                        '#16212B" stroke-width="4" stroke-linejoin="round"/>';
+  meinPfeil.setAttribute('transform','translate(86,0)');
+  du.appendChild(meinPfeil);
+
+  const puck = document.createElementNS('http://www.w3.org/2000/svg','g');
+  puck.setAttribute('class','token');
+  puck.innerHTML = '<ellipse rx="19" ry="14" fill="#0C1319" stroke="#fff" stroke-width="4"/>';
+  gruppe.appendChild(puck);
+
+  // --- Zustand anwenden -----------------------------------------------------
+  function setze(el, p){ el.setAttribute('transform','translate('+p.x+','+p.y+')'); }
+
+  function anwenden(){
+    const a = AUFSTELLUNG[zustand];
+    const istWir = zustand === 'wir';
+    const farbe  = istWir ? FARBE.wir : FARBE.geg;
+    const tief   = istWir ? FARBE.wirTief : FARBE.gegTief;
+
+    document.documentElement.style.setProperty('--aktiv', farbe);
+    document.documentElement.style.setProperty('--aktiv-tief', tief);
+    statusEl.textContent = istWir ? 'Wir haben den Puck' : 'Sie haben den Puck';
+
+    setze(du, a.du);
+    a.mate.forEach((p,i)=> setze(mates[i], p));
+    a.geg.forEach((p,i)=> setze(gegner[i], p));
+
+    // Puck neben den Spieler legen, der ihn hat
+    const halter = a.puck.an === 'du' ? a.du : a.geg[0];
+    setze(puck, {x: halter.x + (istWir ? 44 : -44), y: halter.y + 42});
+
+    // Riesenpfeil dreht sich: nach vorne oder zurück
+    pfeilG.setAttribute('fill', farbe);
+    pfeilG.setAttribute('transform', istWir ? 'translate(0,0)' : 'translate(1000,600) rotate(180)');
+    meinPfeil.setAttribute('transform', istWir ? 'translate(86,0)' : 'translate(-86,0) rotate(180)');
+
+    zielKreis.setAttribute('cx', a.du.x);
+    zielKreis.setAttribute('cy', a.du.y);
+    zielKreis.setAttribute('stroke', farbe);
+    geschafft = false;
+    zielG.style.opacity = 0;          // erst zeigen, wenn er den Spieler bewegt
+  }
+
+  function wechsle(){
+    zustand = (zustand === 'wir') ? 'gegner' : 'wir';
+    anwenden();
+  }
+
+  // --- Ziehen ---------------------------------------------------------------
+  let zieht = false;
+  const pos = {x:0, y:0};
+
+  function svgPunkt(ev){
+    const pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  du.addEventListener('pointerdown', ev=>{
+    zieht = true;
+    du.classList.add('zieht');
+    du.setPointerCapture(ev.pointerId);
+    zielG.style.opacity = geschafft ? 0 : 1;
+    ev.preventDefault();
+  });
+
+  du.addEventListener('pointermove', ev=>{
+    if(!zieht) return;
+    const p = svgPunkt(ev);
+    pos.x = Math.max(70, Math.min(930, p.x));
+    pos.y = Math.max(70, Math.min(530, p.y));
+    setze(du, pos);
+  });
+
+  function loslassen(ev){
+    if(!zieht) return;
+    zieht = false;
+    du.classList.remove('zieht');
+    pruefe();
+  }
+  du.addEventListener('pointerup', loslassen);
+  du.addEventListener('pointercancel', loslassen);
+
+  function pruefe(){
+    const ziel = AUFSTELLUNG[zustand].du;
+    const d = Math.hypot(pos.x - ziel.x, pos.y - ziel.y);
+    if(d < 110){
+      setze(du, ziel);
+      zielG.style.opacity = 0;
+      geschafft = true;
+      jubel();
+    }
+  }
+
+  function jubel(){
+    puls.animate(
+      [{r:66, opacity:.95, strokeWidth:10},{r:130, opacity:0, strokeWidth:2}],
+      {duration:600, easing:'ease-out'}
+    );
+  }
+
+  // Tastatur: Pfeiltasten bewegen den eigenen Spieler
+  document.addEventListener('keydown', ev=>{
+    const schritt = 25;
+    const m = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[ev.key];
+    if(!m) return;
+    ev.preventDefault();
+    const t = du.getAttribute('transform').match(/-?\d+(\.\d+)?/g).map(Number);
+    pos.x = Math.max(70, Math.min(930, t[0] + m[0]*schritt));
+    pos.y = Math.max(70, Math.min(530, t[1] + m[1]*schritt));
+    du.classList.add('zieht');
+    setze(du, pos);
+    zielG.style.opacity = 1;
+    clearTimeout(window.__kbTimer);
+    window.__kbTimer = setTimeout(()=>{ du.classList.remove('zieht'); pruefe(); }, 220);
+  });
+
+  document.getElementById('puckKnopf').addEventListener('click', wechsle);
+  document.getElementById('neuKnopf').addEventListener('click', anwenden);
+
+  anwenden();
+})();
+</script>
+</body>
+</html>
