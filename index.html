@@ -2,11 +2,14 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Taktikboard">
+<meta name="theme-color" content="#16212B">
 <title>Taktikboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
 <style>
   :root{
     --eis:#EDF4F8;
@@ -22,10 +25,10 @@
     --aktiv-tief:var(--wir-tief);
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html,body{height:100%;height:100dvh}
   body{
     background:var(--bande);
-    font-family:"Baloo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family:ui-rounded, "SF Pro Rounded", "Baloo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
     font-weight:800;
     color:#fff;
     overflow:hidden;
@@ -38,7 +41,10 @@
     height:100%;
     display:flex;
     flex-direction:column;
-    padding:clamp(8px,1.6vmin,18px);
+    padding:calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-top))
+            calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-right))
+            calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-bottom))
+            calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-left));
     background:var(--aktiv-tief);
     transition:background .45s ease;
   }
@@ -62,7 +68,7 @@
   .eisflaeche{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
   svg{width:100%;height:100%;display:block}
 
-  .token{cursor:grab;transition:transform .5s cubic-bezier(.34,1.2,.5,1)}
+  .token{cursor:grab;touch-action:none;transition:transform .5s cubic-bezier(.34,1.2,.5,1)}
   .token.zieht{transition:none;cursor:grabbing}
   .token circle{stroke:#fff;stroke-width:5}
   .du-ring{fill:none;stroke:#fff;stroke-width:6;opacity:.9}
@@ -190,43 +196,44 @@
   let geschafft = false;
 
   // --- Spielfiguren bauen ---------------------------------------------------
+  // Alle SVG-Knoten hierüber bauen. innerHTML funktioniert auf SVG-Elementen
+  // in iOS-Safari nicht zuverlässig und bricht das ganze Skript ab.
+  function svgEl(tag, attrs){
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
   function token(id, r, fill, extra){
-    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('class','token');
-    g.setAttribute('id', id);
-    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    c.setAttribute('r', r); c.setAttribute('fill', fill);
-    g.appendChild(c);
+    const g = svgEl('g', {class:'token', id:id});
+    g.appendChild(svgEl('circle', {r:r, fill:fill}));
     if (extra) g.appendChild(extra);
     gruppe.appendChild(g);
     return g;
   }
   function stern(){
-    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-    p.setAttribute('d','M0 -26 L7.6 -8.4 L26.5 -8.4 L11.5 3.2 L17 21 L0 10.5 L-17 21 L-11.5 3.2 L-26.5 -8.4 L-7.6 -8.4 Z');
-    p.setAttribute('fill','#fff');
-    return p;
+    return svgEl('path', {
+      d:'M0 -26 L7.6 -8.4 L26.5 -8.4 L11.5 3.2 L17 21 L0 10.5 L-17 21 L-11.5 3.2 L-26.5 -8.4 L-7.6 -8.4 Z',
+      fill:'#fff'
+    });
   }
 
   const gegner = AUFSTELLUNG.wir.geg.map((_,i)=> token('geg'+i, 40, FARBE.geg));
   const mates  = AUFSTELLUNG.wir.mate.map((_,i)=> token('mate'+i, 40, FARBE.wir));
 
   const du = token('du', 54, FARBE.wir, stern());
-  const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  ring.setAttribute('r',66); ring.setAttribute('class','du-ring'); du.appendChild(ring);
-  const puls = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  puls.setAttribute('r',66); puls.setAttribute('class','puls'); du.appendChild(puls);
+  const ring = svgEl('circle', {r:66, class:'du-ring'}); du.appendChild(ring);
+  const puls = svgEl('circle', {r:66, class:'puls'}); du.appendChild(puls);
 
   // Richtungspfeil am eigenen Spieler
-  const meinPfeil = document.createElementNS('http://www.w3.org/2000/svg','g');
-  meinPfeil.innerHTML = '<path d="M -8 -14 L 26 0 L -8 14 L -2 0 Z" fill="#fff" stroke="'+
-                        '#16212B" stroke-width="4" stroke-linejoin="round"/>';
-  meinPfeil.setAttribute('transform','translate(86,0)');
+  const meinPfeil = svgEl('g', {transform:'translate(86,0)'});
+  meinPfeil.appendChild(svgEl('path', {
+    d:'M -8 -14 L 26 0 L -8 14 L -2 0 Z',
+    fill:'#fff', stroke:'#16212B', 'stroke-width':4, 'stroke-linejoin':'round'
+  }));
   du.appendChild(meinPfeil);
 
-  const puck = document.createElementNS('http://www.w3.org/2000/svg','g');
-  puck.setAttribute('class','token');
-  puck.innerHTML = '<ellipse rx="19" ry="14" fill="#0C1319" stroke="#fff" stroke-width="4"/>';
+  const puck = svgEl('g', {class:'token'});
+  puck.appendChild(svgEl('ellipse', {rx:19, ry:14, fill:'#0C1319', stroke:'#fff', 'stroke-width':4}));
   gruppe.appendChild(puck);
 
   // --- Zustand anwenden -----------------------------------------------------
@@ -315,7 +322,7 @@
 
   function jubel(){
     puls.animate(
-      [{r:66, opacity:.95, strokeWidth:10},{r:130, opacity:0, strokeWidth:2}],
+      [{transform:'scale(1)', opacity:.95},{transform:'scale(2)', opacity:0}],
       {duration:600, easing:'ease-out'}
     );
   }
@@ -341,6 +348,13 @@
 
   anwenden();
 })();
+
+// Offline-Betrieb. Läuft nur über http(s), beim direkten Öffnen der Datei nicht.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
