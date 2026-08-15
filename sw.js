@@ -1,6 +1,6 @@
 // Offline-Betrieb: alles Nötige einmal ablegen, danach zuerst aus dem Cache liefern.
 // VERSION bei jeder Änderung hochzählen — sonst sieht das iPad die alte Fassung.
-const VERSION = 'taktikboard-v3';
+const VERSION = 'taktikboard-v4';
 const DATEIEN = [
   './',
   './index.html',

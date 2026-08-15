@@ -105,6 +105,14 @@
   }
   .puck-knopf:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
   .puck-knopf .wechsel{font-size:1.5em;line-height:1}
+  /* Der Würfel ist der Haupt-Knopf: neue Aufgabe. Deshalb heller und etwas größer. */
+  .wuerfel-knopf{
+    background:var(--aktiv);
+    width:clamp(96px,17vmin,168px);height:clamp(96px,17vmin,168px);
+    padding:clamp(14px,2.6vmin,28px);
+    transition:background .45s ease;
+  }
+  .wuerfel-knopf svg{width:100%;height:100%;display:block}
   .neu{
     background:transparent;border:3px solid rgba(255,255,255,.45);
     color:rgba(255,255,255,.85);font:inherit;font-size:clamp(13px,1.9vmin,19px);
@@ -157,10 +165,20 @@
   </div>
 
   <div class="steuerung">
-    <button class="neu" id="neuKnopf" type="button">Von vorne</button>
-    <button class="puck-knopf" id="puckKnopf" type="button" aria-label="Puck wechseln">
+    <button class="neu" id="neuKnopf" type="button">Nochmal</button>
+    <button class="puck-knopf" id="puckKnopf" type="button" aria-label="Andere Puck-Seite">
       <span class="wechsel" aria-hidden="true">⇄</span>
       <span>Puck</span>
+    </button>
+    <button class="puck-knopf wuerfel-knopf" id="wuerfelKnopf" type="button" aria-label="Neue Aufgabe würfeln">
+      <svg id="wuerfelIcon" viewBox="0 0 48 48" aria-hidden="true">
+        <rect x="4" y="4" width="40" height="40" rx="10" fill="#fff"/>
+        <circle cx="15" cy="15" r="4.2" fill="#16212B"/>
+        <circle cx="33" cy="15" r="4.2" fill="#16212B"/>
+        <circle cx="24" cy="24" r="4.2" fill="#16212B"/>
+        <circle cx="15" cy="33" r="4.2" fill="#16212B"/>
+        <circle cx="33" cy="33" r="4.2" fill="#16212B"/>
+      </svg>
     </button>
   </div>
 </div>
@@ -173,6 +191,7 @@
   const statusEl = document.getElementById('statusText');
   const aufgabeEl= document.getElementById('aufgabeText');
   const konfettiG= document.getElementById('konfetti');
+  const wuerfelIcon = document.getElementById('wuerfelIcon');
   const pfeilG   = document.getElementById('pfeilGross');
 
   const FARBE = {
@@ -183,32 +202,69 @@
   };
   function getCSS(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
-  // Zwei Formationen. start = wo er anfängt, ziel = wo er hin soll.
+  // Jede Aufgabe steht für sich. start = wo er anfängt, ziel = wo er hin soll.
   // Die beiden dürfen NIE gleich sein, sonst gibt es nichts zu tun.
-  const AUFSTELLUNG = {
-    wir: {
-      // Puck bei uns: er steht hinten und soll mit nach vorne.
-      start: {x:280, y:430},
-      ziel:  {x:700, y:300},
-      mate:  [{x:610, y:120},{x:560, y:480}],
-      geg:   [{x:810, y:210},{x:820, y:400},{x:470, y:300}],
-      puckAn:'geg0-nein',
-      aufgabe:'Wir haben den Puck! Fahr nach vorne und biete dich an.',
-      lob:'Super! Vorne hilft man mit.'
+  // puck = 'wir' oder 'gegner' — bestimmt Farbe, Pfeilrichtung und Statuszeile.
+  // Neue Aufgaben einfach unten anhängen, sonst ist nichts anzupassen.
+  const AUFGABEN = [
+    {
+      puck:'wir',
+      start:{x:280, y:430},
+      ziel: {x:700, y:300},
+      mate: [{x:610, y:120},{x:560, y:480}],
+      geg:  [{x:810, y:210},{x:820, y:400},{x:470, y:300}],
+      text:'Wir haben den Puck! Fahr nach vorne und biete dich an.',
+      lob: 'Super! Vorne hilft man mit.'
     },
-    gegner: {
-      // Puck beim Gegner: er steht vorne und muss zurück vors eigene Tor.
-      start: {x:730, y:180},
-      ziel:  {x:300, y:300},
-      mate:  [{x:380, y:140},{x:360, y:465}],
-      geg:   [{x:520, y:300},{x:430, y:150},{x:450, y:455}],
-      puckAn:'geg0',
-      aufgabe:'Der Gegner hat den Puck! Fahr zurück vor dein Tor.',
-      lob:'Stark! Du hilfst hinten mit.'
+    {
+      puck:'wir',
+      start:{x:620, y:300},
+      ziel: {x:790, y:470},
+      mate: [{x:540, y:170},{x:330, y:380}],
+      geg:  [{x:700, y:180},{x:760, y:300},{x:480, y:460}],
+      text:'Dein Freund hat den Puck. Fahr zum Tor, damit er dir zuspielen kann!',
+      lob: 'Genau! Vor dem Tor kannst du Tore schießen.'
+    },
+    {
+      puck:'wir',
+      start:{x:250, y:170},
+      ziel: {x:500, y:300},
+      mate: [{x:180, y:400},{x:700, y:210}],
+      geg:  [{x:380, y:250},{x:620, y:430},{x:800, y:330}],
+      text:'Der Puck kommt aus unserer Ecke. Fahr in die Mitte und hol ihn ab!',
+      lob: 'Toll! In der Mitte bist du gut zu finden.'
+    },
+    {
+      puck:'gegner',
+      start:{x:730, y:180},
+      ziel: {x:300, y:300},
+      mate: [{x:380, y:140},{x:360, y:465}],
+      geg:  [{x:520, y:300},{x:430, y:150},{x:450, y:455}],
+      text:'Der Gegner hat den Puck! Fahr zurück vor dein Tor.',
+      lob: 'Stark! Du hilfst hinten mit.'
+    },
+    {
+      puck:'gegner',
+      start:{x:520, y:150},
+      ziel: {x:330, y:430},
+      mate: [{x:300, y:180},{x:600, y:320}],
+      geg:  [{x:450, y:450},{x:640, y:170},{x:720, y:400}],
+      text:'Ein Gegner fährt zu deinem Tor. Fahr zwischen ihn und das Tor!',
+      lob: 'Klasse! Immer zwischen Gegner und Tor.'
+    },
+    {
+      puck:'gegner',
+      start:{x:800, y:300},
+      ziel: {x:540, y:235},
+      mate: [{x:400, y:420},{x:250, y:280}],
+      geg:  [{x:620, y:170},{x:700, y:430},{x:450, y:300}],
+      text:'Der Gegner ganz nah bei dir hat den Puck. Fahr hin und störe ihn!',
+      lob: 'Ja! Nah dran ist er nervös.'
     }
-  };
+  ];
 
-  let zustand = 'wir';
+  let nr = 0;                       // welche Aufgabe gerade läuft
+  let zustand = AUFGABEN[0].puck;
   let geschafft = false;
 
   // --- Spielfiguren bauen ---------------------------------------------------
@@ -233,8 +289,8 @@
     });
   }
 
-  const gegner = AUFSTELLUNG.wir.geg.map((_,i)=> token('geg'+i, 40, FARBE.geg));
-  const mates  = AUFSTELLUNG.wir.mate.map((_,i)=> token('mate'+i, 40, FARBE.wir));
+  const gegner = AUFGABEN[0].geg.map((_,i)=> token('geg'+i, 40, FARBE.geg));
+  const mates  = AUFGABEN[0].mate.map((_,i)=> token('mate'+i, 40, FARBE.wir));
 
   const du = token('du', 54, FARBE.wir, stern());
   const ring = svgEl('circle', {r:66, class:'du-ring'}); du.appendChild(ring);
@@ -256,7 +312,8 @@
   function setze(el, p){ el.setAttribute('transform','translate('+p.x+','+p.y+')'); }
 
   function anwenden(){
-    const a = AUFSTELLUNG[zustand];
+    const a = AUFGABEN[nr];
+    zustand = a.puck;
     const istWir = zustand === 'wir';
     const farbe  = istWir ? FARBE.wir : FARBE.geg;
     const tief   = istWir ? FARBE.wirTief : FARBE.gegTief;
@@ -264,7 +321,7 @@
     document.documentElement.style.setProperty('--aktiv', farbe);
     document.documentElement.style.setProperty('--aktiv-tief', tief);
     statusEl.textContent = istWir ? 'Wir haben den Puck' : 'Gegner hat den Puck';
-    aufgabeEl.textContent = a.aufgabe;
+    aufgabeEl.textContent = a.text;
     aufgabeEl.classList.remove('geloest');
 
     setze(du, a.start);
@@ -286,9 +343,29 @@
     while (konfettiG.firstChild) konfettiG.removeChild(konfettiG.firstChild);
   }
 
-  function wechsle(){
-    zustand = (zustand === 'wir') ? 'gegner' : 'wir';
+  // Zufällig, aber nie zweimal dieselbe hintereinander.
+  function zufall(nurDiese){
+    const moeglich = AUFGABEN
+      .map((a,i)=> i)
+      .filter(i => i !== nr && (!nurDiese || AUFGABEN[i].puck === nurDiese));
+    if(!moeglich.length) return;
+    nr = moeglich[Math.floor(Math.random()*moeglich.length)];
     anwenden();
+  }
+
+  function wuerfeln(){
+    wuerfelIcon.animate(
+      [{transform:'rotate(0deg) scale(1)'},
+       {transform:'rotate(360deg) scale(1.2)'},
+       {transform:'rotate(720deg) scale(1)'}],
+      {duration:500, easing:'ease-out'}
+    );
+    zufall(null);
+  }
+
+  // Puck-Knopf: neue Aufgabe, aber mit der jeweils anderen Puck-Seite.
+  function wechsle(){
+    zufall(zustand === 'wir' ? 'gegner' : 'wir');
   }
 
   // --- Ziehen ---------------------------------------------------------------
@@ -327,7 +404,7 @@
 
   function pruefe(){
     if(geschafft) return;
-    const a = AUFSTELLUNG[zustand];
+    const a = AUFGABEN[nr];
     // Ohne sichtbaren Kreis muss die Trefferzone großzügig sein.
     const d = Math.hypot(pos.x - a.ziel.x, pos.y - a.ziel.y);
     if(d < 170){
@@ -341,7 +418,7 @@
   }
 
   function jubel(){
-    const ziel = AUFSTELLUNG[zustand].ziel;
+    const ziel = AUFGABEN[nr].ziel;
 
     // Ring stößt sich ab
     puls.animate(
@@ -393,6 +470,7 @@
   });
 
   document.getElementById('puckKnopf').addEventListener('click', wechsle);
+  document.getElementById('wuerfelKnopf').addEventListener('click', wuerfeln);
   document.getElementById('neuKnopf').addEventListener('click', anwenden);
 
   anwenden();
