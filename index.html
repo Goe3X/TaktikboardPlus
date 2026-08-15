@@ -296,14 +296,6 @@
   const ring = svgEl('circle', {r:66, class:'du-ring'}); du.appendChild(ring);
   const puls = svgEl('circle', {r:66, class:'puls'}); du.appendChild(puls);
 
-  // Richtungspfeil am eigenen Spieler
-  const meinPfeil = svgEl('g', {transform:'translate(86,0)'});
-  meinPfeil.appendChild(svgEl('path', {
-    d:'M -8 -14 L 26 0 L -8 14 L -2 0 Z',
-    fill:'#fff', stroke:'#16212B', 'stroke-width':4, 'stroke-linejoin':'round'
-  }));
-  du.appendChild(meinPfeil);
-
   const puck = svgEl('g', {class:'token'});
   puck.appendChild(svgEl('ellipse', {rx:19, ry:14, fill:'#0C1319', stroke:'#fff', 'stroke-width':4}));
   gruppe.appendChild(puck);
@@ -337,7 +329,6 @@
     // Riesenpfeil dreht sich: nach vorne oder zurück
     pfeilG.setAttribute('fill', farbe);
     pfeilG.setAttribute('transform', istWir ? 'translate(0,0)' : 'translate(1000,600) rotate(180)');
-    meinPfeil.setAttribute('transform', istWir ? 'translate(86,0)' : 'translate(-86,0) rotate(180)');
 
     geschafft = false;
     while (konfettiG.firstChild) konfettiG.removeChild(konfettiG.firstChild);
