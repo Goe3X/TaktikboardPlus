@@ -112,7 +112,6 @@ body{
   cursor:pointer;
 }
 .puck-knopf:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
-.puck-knopf .wechsel{font-size:1.5em;line-height:1}
 /* Der Würfel ist der Haupt-Knopf: neue Aufgabe. Deshalb heller und größer. */
 .wuerfel-knopf{
   background:var(--aktiv);
@@ -121,12 +120,22 @@ body{
   transition:background .45s ease;
 }
 .wuerfel-knopf svg{width:100%;height:100%;display:block}
-.neu{
-  background:transparent;border:3px solid rgba(255,255,255,.45);
-  color:rgba(255,255,255,.85);font:inherit;font-size:clamp(13px,1.9vmin,19px);
-  text-transform:uppercase;padding:.55em 1.1em;border-radius:999px;cursor:pointer;
+/* Nebenknopf: rund und zurückhaltend, damit er dem Würfel nicht die Schau stiehlt. */
+.rund-klein{
+  width:clamp(56px,9vmin,88px);height:clamp(56px,9vmin,88px);
+  border-radius:50%;
+  border:3px solid rgba(255,255,255,.45);
+  background:transparent;
+  display:flex;align-items:center;justify-content:center;
+  padding:clamp(12px,2vmin,20px);
+  cursor:pointer;
 }
-.neu:active{background:rgba(255,255,255,.14)}
+.rund-klein svg{
+  width:100%;height:100%;display:block;
+  fill:none;stroke:rgba(255,255,255,.85);stroke-width:2.4;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.rund-klein:active{background:rgba(255,255,255,.14)}
 button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
 
 /* --- Startseite --------------------------------------------------------- */
