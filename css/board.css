@@ -1,0 +1,160 @@
+/* Gemeinsames Layout für alle Stufen und die Startseite. */
+
+:root{
+  --eis:#EDF4F8;
+  --eis-tief:#D7E5EE;
+  --bande:#16212B;
+  --linie-blau:#2B5FA8;
+  --linie-rot:#C92F3C;
+  --wir:#F2A413;
+  --wir-tief:#B87703;
+  --gegner:#6B3FA0;
+  --gegner-tief:#4A2977;
+  --aktiv:var(--wir);
+  --aktiv-tief:var(--wir-tief);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;height:100dvh}
+body{
+  background:var(--bande);
+  font-family:ui-rounded, "SF Pro Rounded", "Baloo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight:800;
+  color:#fff;
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+
+/* Die Bande leuchtet in der Farbe des Teams, das den Puck hat. */
+.rahmen{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  padding:calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-top))
+          calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-right))
+          calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-bottom))
+          calc(clamp(8px,1.6vmin,18px) + env(safe-area-inset-left));
+  background:var(--aktiv-tief);
+  transition:background .45s ease;
+}
+@media (prefers-reduced-motion:reduce){
+  .rahmen,.token,.pfeil-gross,.kachel{transition:none !important}
+}
+
+/* --- Kopfbereich einer Stufe ------------------------------------------- */
+.kopf{padding:.3em 0 .45em;text-align:center;position:relative}
+.status{
+  display:flex;align-items:center;justify-content:center;gap:.5em;
+  font-size:clamp(14px,2.2vmin,22px);
+  letter-spacing:.02em;
+  text-transform:uppercase;
+  opacity:.7;
+}
+.status .marke{
+  width:.85em;height:.85em;border-radius:50%;
+  background:var(--aktiv);
+  border:.14em solid rgba(255,255,255,.85);
+}
+/* Der Aufgabentext ist zum Vorlesen — deshalb groß und ruhig. */
+.aufgabe{
+  font-size:clamp(20px,3.6vmin,38px);
+  line-height:1.15;
+  margin-top:.15em;
+  padding:0 2.6em;
+  transition:opacity .3s ease;
+}
+.aufgabe.geloest{opacity:.45}
+
+/* Zurück zur Startseite — klein, damit sie nicht der Hauptknopf ist. */
+.zurueck{
+  position:absolute;left:0;top:0;
+  width:clamp(40px,6vmin,58px);height:clamp(40px,6vmin,58px);
+  border-radius:50%;
+  border:3px solid rgba(255,255,255,.4);
+  background:transparent;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  text-decoration:none;
+}
+.zurueck svg{width:55%;height:55%;fill:none;stroke:#fff;stroke-width:3.4;
+             stroke-linecap:round;stroke-linejoin:round}
+.zurueck:active{background:rgba(255,255,255,.14)}
+
+/* --- Eisfläche ---------------------------------------------------------- */
+.eisflaeche{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.eisflaeche svg{width:100%;height:100%;display:block}
+
+.token{cursor:grab;touch-action:none;transition:transform .5s cubic-bezier(.34,1.2,.5,1)}
+.token.zieht{transition:none;cursor:grabbing}
+.token circle{stroke:#fff;stroke-width:5}
+.du-ring{fill:none;stroke:#fff;stroke-width:6;opacity:.9}
+.puls{fill:none;stroke:#fff;stroke-width:8;opacity:0}
+.pfeil-gross{transition:transform .55s cubic-bezier(.34,1.1,.5,1), fill .45s ease}
+
+/* --- Steuerung ---------------------------------------------------------- */
+.steuerung{
+  display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vmin,32px);
+  padding:clamp(8px,1.6vmin,16px) 0 clamp(4px,1vmin,10px);
+}
+.puck-knopf{
+  width:clamp(84px,15vmin,150px);height:clamp(84px,15vmin,150px);
+  border-radius:50%;
+  border:clamp(5px,.9vmin,9px) solid #fff;
+  background:#0C1319;
+  color:#fff;
+  font:inherit;
+  font-size:clamp(13px,2.1vmin,22px);
+  line-height:1.05;
+  text-transform:uppercase;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15em;
+  box-shadow:0 clamp(5px,1vmin,10px) 0 rgba(0,0,0,.45);
+  cursor:pointer;
+}
+.puck-knopf:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
+.puck-knopf .wechsel{font-size:1.5em;line-height:1}
+/* Der Würfel ist der Haupt-Knopf: neue Aufgabe. Deshalb heller und größer. */
+.wuerfel-knopf{
+  background:var(--aktiv);
+  width:clamp(96px,17vmin,168px);height:clamp(96px,17vmin,168px);
+  padding:clamp(14px,2.6vmin,28px);
+  transition:background .45s ease;
+}
+.wuerfel-knopf svg{width:100%;height:100%;display:block}
+.neu{
+  background:transparent;border:3px solid rgba(255,255,255,.45);
+  color:rgba(255,255,255,.85);font:inherit;font-size:clamp(13px,1.9vmin,19px);
+  text-transform:uppercase;padding:.55em 1.1em;border-radius:999px;cursor:pointer;
+}
+.neu:active{background:rgba(255,255,255,.14)}
+button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
+
+/* --- Startseite --------------------------------------------------------- */
+.start{
+  height:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:clamp(14px,3vmin,34px);
+  padding:calc(clamp(10px,2vmin,24px) + env(safe-area-inset-top))
+          calc(clamp(10px,2vmin,24px) + env(safe-area-inset-right))
+          calc(clamp(10px,2vmin,24px) + env(safe-area-inset-bottom))
+          calc(clamp(10px,2vmin,24px) + env(safe-area-inset-left));
+  background:var(--wir-tief);
+}
+.kacheln{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:clamp(14px,3vmin,34px);
+}
+/* Bewusst nur Bild, kein Text — er kann noch nicht lesen. */
+.kachel{
+  width:clamp(160px,30vmin,300px);
+  border:clamp(5px,.9vmin,9px) solid #fff;
+  border-radius:clamp(20px,3.4vmin,36px);
+  background:#0C1319;
+  padding:clamp(9px,1.6vmin,18px);
+  box-shadow:0 clamp(6px,1.1vmin,12px) 0 rgba(0,0,0,.45);
+  cursor:pointer;
+  display:block;
+  transition:transform .18s ease;
+}
+.kachel:active{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
+.kachel svg{width:100%;height:auto;display:block;border-radius:clamp(12px,2vmin,22px)}
