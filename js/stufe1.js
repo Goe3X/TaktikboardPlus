@@ -102,7 +102,7 @@ function pruefe(){
   }
 }
 
-machZiehbar(svg, du, pos, pruefe);
+machZiehbar(svg, du, pos, { beiLoslassen: pruefe });
 
 document.getElementById('wuerfelKnopf').addEventListener('click', wuerfeln);
 document.getElementById('neuKnopf').addEventListener('click', anwenden);
