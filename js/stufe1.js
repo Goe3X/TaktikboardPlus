@@ -40,14 +40,12 @@ spieler.appendChild(puck);
 
 // --- Zustand ---------------------------------------------------------------
 let nr = 0;                  // welche Aufgabe gerade läuft
-let zustand = AUFGABEN[0].puck;
 let geschafft = false;
 const pos = {x:0, y:0};
 
 function anwenden(){
   const a = AUFGABEN[nr];
-  zustand = a.puck;
-  const istWir = zustand === 'wir';
+  const istWir = a.puck === 'wir';
   const farbe  = istWir ? FARBE.wir : FARBE.geg;
   const tief   = istWir ? FARBE.wirTief : FARBE.gegTief;
 
@@ -74,10 +72,8 @@ function anwenden(){
 }
 
 // Zufällig, aber nie zweimal dieselbe hintereinander.
-function zufall(nurDiese){
-  const moeglich = AUFGABEN
-    .map((a,i) => i)
-    .filter(i => i !== nr && (!nurDiese || AUFGABEN[i].puck === nurDiese));
+function zufall(){
+  const moeglich = AUFGABEN.map((a,i) => i).filter(i => i !== nr);
   if (!moeglich.length) return;
   nr = moeglich[Math.floor(Math.random() * moeglich.length)];
   anwenden();
@@ -90,12 +86,7 @@ function wuerfeln(){
      {transform:'rotate(720deg) scale(1)'}],
     {duration:500, easing:'ease-out'}
   );
-  zufall(null);
-}
-
-// Puck-Knopf: neue Aufgabe, aber mit der jeweils anderen Puck-Seite.
-function wechsle(){
-  zufall(zustand === 'wir' ? 'gegner' : 'wir');
+  zufall();
 }
 
 function pruefe(){
@@ -113,7 +104,6 @@ function pruefe(){
 
 machZiehbar(svg, du, pos, pruefe);
 
-document.getElementById('puckKnopf').addEventListener('click', wechsle);
 document.getElementById('wuerfelKnopf').addEventListener('click', wuerfeln);
 document.getElementById('neuKnopf').addEventListener('click', anwenden);
 

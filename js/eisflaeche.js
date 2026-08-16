@@ -66,10 +66,11 @@ export function baueEis({ pfeil = true, interaktiv = true } = {}){
   marken.forEach(([tag, attrs]) => innen.appendChild(svgEl(tag, attrs)));
   svg.appendChild(innen);
 
-  // Tore
+  // Tore in Teamfarben: links unser Tor, rechts das des Gegners.
+  // Die Seiten bleiben immer gleich — sonst verliert man die Orientierung.
   const tore = svgEl('g', {stroke:'#fff', 'stroke-width':6});
-  tore.appendChild(svgEl('rect', {x:86,  y:235, width:46, height:130, rx:14, fill:'var(--linie-rot)'}));
-  tore.appendChild(svgEl('rect', {x:868, y:235, width:46, height:130, rx:14, fill:'var(--linie-rot)'}));
+  tore.appendChild(svgEl('rect', {x:86,  y:235, width:46, height:130, rx:14, fill:'var(--wir)'}));
+  tore.appendChild(svgEl('rect', {x:868, y:235, width:46, height:130, rx:14, fill:'var(--gegner)'}));
   svg.appendChild(tore);
 
   const spieler  = svgEl('g');
