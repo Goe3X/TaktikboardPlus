@@ -8,7 +8,8 @@ import { VORSCHAU } from './vorschau.js';
 
 const STUFEN = [
   { datei:'stufe1.html', vorschau:'stufe1', name:'Wo muss ich hinfahren?' },
-  { datei:'stufe2.html', vorschau:'stufe2', name:'Wer ist frei?' }
+  { datei:'stufe2.html', vorschau:'stufe2', name:'Wer ist frei?' },
+  { datei:'stufe3.html', vorschau:'stufe3', name:'Pass in den freien Raum' }
 ];
 
 const kacheln = document.getElementById('kacheln');
