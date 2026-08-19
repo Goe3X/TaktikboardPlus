@@ -1,21 +1,28 @@
 // Stufe 2: "Wer ist frei?"
-// Das Kind hat den Puck und zieht ihn zu einem Mitspieler.
-// Ist keiner frei, fährt es selbst Richtung gegnerisches Tor.
+// Das Kind hat den Puck und TIPPT den Mitspieler an, den es anspielen will.
+// Ist keiner frei, zieht es den eigenen Spieler Richtung gegnerisches Tor.
+//
+// Warum tippen statt ziehen: der Puck lag im Kreis des eigenen Spielers.
+// Ein Kinderfinger deckt beides ab und trifft den größeren — die Bedienung
+// war damit nicht spielbar. Jetzt sind die Gesten klar getrennt:
+//   tippen = passen, ziehen = selbst fahren.
 
 import { svgEl, setze, stern, FARBE } from './svg.js';
-import { baueEis, pfeilRichtung, FELD } from './eisflaeche.js';
+import { baueEis, pfeilRichtung } from './eisflaeche.js';
 import { machZiehbar } from './ziehen.js';
 import { feiern, konfettiLeeren } from './feiern.js';
 import { neueSituation } from './situation2.js';
 
-const PASS_TREFFER = 130;   // wie nah der Puck am Mitspieler landen muss
-const TOR_LINIE    = 720;   // ab hier gilt "selbst zum Tor gefahren"
+const TOR_LINIE    = 720;           // ab hier gilt "selbst zum Tor gefahren"
 const PUCK_ABSTAND = {x:0, y:52};   // wo der Puck am Puckführenden liegt
+const TIPP_ZONE    = 75;            // unsichtbare, großzügige Trefferfläche
 
-const AUFGABE = 'Wer ist frei? Schieb den Puck zu ihm — oder fahr selbst!';
+const AUFGABE = 'Wer ist frei? Tippe ihn an — oder fahr selbst!';
 
+const statusEl    = document.getElementById('statusText');
 const aufgabeEl   = document.getElementById('aufgabeText');
 const wuerfelIcon = document.getElementById('wuerfelIcon');
+const neuKnopf    = document.getElementById('neuKnopf');
 
 // --- Eisfläche -------------------------------------------------------------
 const { svg, spieler, konfetti, pfeilGross } = baueEis();
@@ -30,27 +37,37 @@ function token(r, fill, extra){
 }
 
 const gegner = [0,1,2].map(() => token(40, FARBE.geg));
-const mates  = [0,1].map(() => token(40, FARBE.wir));
+
+// Mitspieler bekommen eine unsichtbare große Tippfläche — 40 Pixel Radius
+// sind für einen Kinderfinger auf dem iPad zu wenig.
+const mates = [0,1].map(i => {
+  const g = token(40, FARBE.wir);
+  g.setAttribute('class', 'token tippbar');
+  g.appendChild(svgEl('circle', {r:TIPP_ZONE, fill:'transparent'}));
+  g.addEventListener('click', () => tippe(i));
+  return g;
+});
 
 const du = token(54, FARBE.wir, stern());
 du.appendChild(svgEl('circle', {r:66, class:'du-ring'}));
 const puls = svgEl('circle', {r:66, class:'puls'});
 du.appendChild(puls);
 
-// Der Puck liegt oben, damit man ihn immer greifen kann.
-const puck = svgEl('g', {class:'token'});
+const puck = svgEl('g');
 puck.appendChild(svgEl('ellipse', {rx:22, ry:16, fill:'#0C1319', stroke:'#fff', 'stroke-width':5}));
 spieler.appendChild(puck);
 
 // --- Zustand ---------------------------------------------------------------
-let lage = null;              // aktuelle Situation aus dem Generator
+let lage = null;          // aktuelle Situation aus dem Generator
 let geschafft = false;
-let laeuft = false;           // während einer Animation nichts annehmen
-let hatDaneben = false;       // hat er schon einen Fehlpass versucht?
+let verloren = false;     // Puck weg — es geht erst mit "Nochmal" weiter
+let laeuft = false;       // während einer Animation nichts annehmen
+let hatDaneben = false;   // schon einmal falsch gepasst? (pro Situation)
 const puckPos = {x:0, y:0};
 const duPos   = {x:0, y:0};
 
 function keinerFrei(){ return lage && !lage.frei[0] && !lage.frei[1]; }
+function bereit(){ return !geschafft && !verloren && !laeuft; }
 
 function puckAnDu(){
   puckPos.x = duPos.x + PUCK_ABSTAND.x;
@@ -58,31 +75,41 @@ function puckAnDu(){
   setze(puck, puckPos);
 }
 
+function farbenSetzen(istWir){
+  document.documentElement.style.setProperty('--aktiv', istWir ? FARBE.wir : FARBE.geg);
+  document.documentElement.style.setProperty('--aktiv-tief', istWir ? FARBE.wirTief : FARBE.gegTief);
+  statusEl.textContent = istWir ? 'Du hast den Puck' : 'Gegner hat den Puck';
+  pfeilRichtung(pfeilGross, istWir, istWir ? FARBE.wir : FARBE.geg);
+}
+
+/**
+ * @param {boolean} neu  true = neue Situation würfeln, false = dieselbe nochmal
+ */
 function anwenden(neu){
-  if (neu || !lage) lage = neueSituation();
+  if (neu || !lage){ lage = neueSituation(); hatDaneben = false; }
 
   duPos.x = lage.du.x; duPos.y = lage.du.y;
   setze(du, duPos);
   lage.mates.forEach((p,i) => setze(mates[i], p));
   lage.geg.forEach((p,i) => setze(gegner[i], p));
   puckAnDu();
+  puck.style.opacity = 1;
 
-  // In Stufe 2 haben immer wir den Puck.
-  document.documentElement.style.setProperty('--aktiv', FARBE.wir);
-  document.documentElement.style.setProperty('--aktiv-tief', FARBE.wirTief);
-  pfeilRichtung(pfeilGross, true, FARBE.wir);
-
+  farbenSetzen(true);
   aufgabeEl.textContent = AUFGABE;
   aufgabeEl.classList.remove('geloest');
+  neuKnopf.classList.remove('ruft');
 
   geschafft = false;
-  laeuft = false;
-  hatDaneben = false;
+  verloren  = false;
+  laeuft    = false;
   konfettiLeeren(konfetti);
+
+  // Nach einem Fehlversuch zeigen wir, dass er auch selbst fahren darf.
+  if (hatDaneben && keinerFrei()) hinweisSelbstFahren();
 }
 
-// --- Puck bewegen ----------------------------------------------------------
-// Kleine Hilfsanimation: Element von A nach B fliegen lassen.
+// --- Animationen -----------------------------------------------------------
 function fliege(el, von, nach, dauer, danach){
   laeuft = true;
   const anim = el.animate(
@@ -90,54 +117,54 @@ function fliege(el, von, nach, dauer, danach){
      {transform:'translate(' + nach.x + 'px,' + nach.y + 'px)'}],
     {duration:dauer, easing:'cubic-bezier(.3,.8,.4,1)'}
   );
-  anim.onfinish = () => {
-    setze(el, nach);
-    laeuft = false;
-    if (danach) danach();
-  };
+  anim.onfinish = () => { setze(el, nach); laeuft = false; if (danach) danach(); };
 }
 
-function gelungenerPass(zielIndex){
-  const ziel = lage.mates[zielIndex];
+function gelungenerPass(i){
+  const ziel = lage.mates[i];
   fliege(puck, puckPos, ziel, 380, () => {
     puckPos.x = ziel.x; puckPos.y = ziel.y;
     geschafft = true;
     aufgabeEl.textContent = 'Super! Der war frei.';
     aufgabeEl.classList.add('geloest');
-    feiern(konfetti, mates[zielIndex], null, ziel);
+    feiern(konfetti, mates[i], null, ziel);
   });
 }
 
-function abgefangen(zielIndex){
-  const mate = lage.mates[zielIndex];
-  // Der deckende Gegner ist der, der dem Mitspieler am nächsten steht.
+// Puckverlust. Der Puck kehrt NICHT zurück — das sah für ein Kind aus wie
+// ein Zuspiel vom Gegner. Stattdessen: Bild kippt auf Violett (dieselbe
+// Sprache wie in Stufe 1), Runde steht still, weiter geht es mit "Nochmal".
+function abgefangen(i){
+  const mate = lage.mates[i];
   let nah = 0;
-  lage.geg.forEach((g,i) => {
-    if (Math.hypot(g.x - mate.x, g.y - mate.y) <
-        Math.hypot(lage.geg[nah].x - mate.x, lage.geg[nah].y - mate.y)) nah = i;
+  lage.geg.forEach((g, k) => {
+    const dNeu = Math.hypot(g.x - mate.x, g.y - mate.y);
+    const dAlt = Math.hypot(lage.geg[nah].x - mate.x, lage.geg[nah].y - mate.y);
+    if (dNeu < dAlt) nah = k;
   });
   const abfaenger = lage.geg[nah];
 
-  // Puck fliegt los, der Gegner schnappt ihn, dann kommt er zurück.
-  fliege(puck, puckPos, abfaenger, 330, () => {
+  fliege(puck, puckPos, abfaenger, 340, () => {
+    verloren = true;
+    hatDaneben = true;
+    farbenSetzen(false);                 // Bild kippt auf Violett
     gegner[nah].animate(
       [{transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'},
        {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1.3)'},
        {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'}],
-      {duration:420, easing:'ease-out'}
+      {duration:460, easing:'ease-out'}
     );
-    setTimeout(() => {
-      fliege(puck, abfaenger, {x: duPos.x + PUCK_ABSTAND.x, y: duPos.y + PUCK_ABSTAND.y}, 420, () => {
-        puckAnDu();
-        hatDaneben = true;
-        // Erst nach einem Fehlversuch zeigen wir, dass er selbst fahren darf.
-        if (keinerFrei()) hinweisSelbstFahren();
-      });
-    }, 380);
+    aufgabeEl.textContent = 'Der war gedeckt — der Gegner hat den Puck.';
+    aufgabeEl.classList.add('geloest');
+    rufeNochmal();
   });
 }
 
-// Sanfter Hinweis statt einer Textmeldung: sein Spieler pulsiert.
+// Er kann nicht lesen: der Nochmal-Knopf muss sich selbst anbieten.
+function rufeNochmal(){
+  neuKnopf.classList.add('ruft');
+}
+
 function hinweisSelbstFahren(){
   puls.animate(
     [{transform:'scale(1)', opacity:.8}, {transform:'scale(1.6)', opacity:0}],
@@ -145,25 +172,16 @@ function hinweisSelbstFahren(){
   );
 }
 
-function puckLoslassen(){
-  if (geschafft || laeuft) return;
-
-  // Welcher Mitspieler wurde getroffen?
-  let treffer = -1, besteEntfernung = PASS_TREFFER;
-  lage.mates.forEach((m,i) => {
-    const e = Math.hypot(puckPos.x - m.x, puckPos.y - m.y);
-    if (e < besteEntfernung){ besteEntfernung = e; treffer = i; }
-  });
-
-  if (treffer === -1){ puckAnDu(); return; }        // ins Leere — einfach zurück
-  if (lage.frei[treffer]) gelungenerPass(treffer);
-  else abgefangen(treffer);
+// --- Eingaben --------------------------------------------------------------
+function tippe(i){
+  if (!bereit()) return;
+  if (lage.frei[i]) gelungenerPass(i);
+  else abgefangen(i);
 }
 
-// --- Selbst fahren ---------------------------------------------------------
 function duLoslassen(){
-  if (geschafft || laeuft) return;
-  if (!keinerFrei()){ // Passen ist hier die Aufgabe — zurück auf Anfang
+  if (!bereit()) return;
+  if (!keinerFrei()){          // Passen ist hier die Aufgabe
     duPos.x = lage.du.x; duPos.y = lage.du.y;
     setze(du, duPos);
     puckAnDu();
@@ -177,15 +195,10 @@ function duLoslassen(){
   }
 }
 
-machZiehbar(svg, puck, puckPos, {
-  beiLoslassen: puckLoslassen,
-  aktiv: () => !geschafft && !laeuft
-});
-
 machZiehbar(svg, du, duPos, {
   beiLoslassen: duLoslassen,
-  beiBewegung: puckAnDu,          // der Puck fährt mit
-  aktiv: () => !geschafft && !laeuft
+  beiBewegung: puckAnDu,       // der Puck fährt mit
+  aktiv: bereit
 });
 
 document.getElementById('wuerfelKnopf').addEventListener('click', () => {
@@ -197,6 +210,6 @@ document.getElementById('wuerfelKnopf').addEventListener('click', () => {
   );
   anwenden(true);
 });
-document.getElementById('neuKnopf').addEventListener('click', () => anwenden(false));
+neuKnopf.addEventListener('click', () => anwenden(false));
 
 anwenden(true);
