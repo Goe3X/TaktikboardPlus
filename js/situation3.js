@@ -33,6 +33,9 @@ export function bahnEnde(mate){
 // Umriss der Laufbahn als Kapselform (Rechteck mit runden Enden).
 // Als Pfad, damit die Bahn eine sichtbare Kante bekommt — ein reines
 // breites Band ohne Rand verschwindet optisch auf dem hellen Eis.
+//
+// ACHTUNG Sweep-Flag: beide Halbkreise müssen mit 0 gezeichnet werden.
+// Mit 1 wölben sie nach INNEN und aus der Kapsel wird eine Sanduhr.
 export function bahnPfad(mate){
   const e = bahnEnde(mate);
   const vx = Math.cos(mate.richtung), vy = Math.sin(mate.richtung);
@@ -40,9 +43,9 @@ export function bahnPfad(mate){
   const r = BAHN_HALB;
   return 'M ' + (mate.x + px) + ' ' + (mate.y + py) +
          ' L ' + (e.x + px) + ' ' + (e.y + py) +
-         ' A ' + r + ' ' + r + ' 0 0 1 ' + (e.x - px) + ' ' + (e.y - py) +
+         ' A ' + r + ' ' + r + ' 0 0 0 ' + (e.x - px) + ' ' + (e.y - py) +
          ' L ' + (mate.x - px) + ' ' + (mate.y - py) +
-         ' A ' + r + ' ' + r + ' 0 0 1 ' + (mate.x + px) + ' ' + (mate.y + py) + ' Z';
+         ' A ' + r + ' ' + r + ' 0 0 0 ' + (mate.x + px) + ' ' + (mate.y + py) + ' Z';
 }
 
 // Abstand eines Punktes zur Bahnachse (Strecke Mitspieler → Bahnende).

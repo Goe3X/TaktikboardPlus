@@ -63,11 +63,21 @@ export function vorschauStufe3(){
   const { svg, spieler } = baueEis({ interaktiv:false });
 
   function bahn(x1, y1, x2, y2){
-    return svgEl('line', {
+    const g = svgEl('g');
+    g.appendChild(svgEl('line', {
       x1:x1, y1:y1, x2:x2, y2:y2,
       stroke:'var(--wir)', 'stroke-width':210, 'stroke-linecap':'round',
       opacity:'.26'
-    });
+    }));
+    const grad = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+    const ex = x1 + Math.cos(Math.atan2(y2-y1, x2-x1)) * 64;
+    const ey = y1 + Math.sin(Math.atan2(y2-y1, x2-x1)) * 64;
+    g.appendChild(svgEl('path', {
+      d:'M -22 -26 L 30 0 L -22 26 L -10 0 Z',
+      fill:'var(--wir)', stroke:'#fff', 'stroke-width':4,
+      transform:'translate(' + ex + ',' + ey + ') rotate(' + grad + ')'
+    }));
+    return g;
   }
 
   spieler.appendChild(bahn(470, 430, 740, 480));   // freie Bahn unten

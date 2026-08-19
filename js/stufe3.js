@@ -12,7 +12,7 @@ import { svgEl, setze, stern, FARBE } from './svg.js';
 import { baueEis, pfeilRichtung } from './eisflaeche.js';
 import { machZiehbar } from './ziehen.js';
 import { feiern, konfettiLeeren } from './feiern.js';
-import { neueSituation, inBahn, bahnEnde, bahnPfad,
+import { neueSituation, inBahn, bahnPfad,
          abstandZurBahn } from './situation3.js';
 
 const TOR_LINIE    = 720;
@@ -69,13 +69,14 @@ const bahnen = [0,1].map(() => {
 });
 
 function zeichneBahn(i, mate){
-  const e = bahnEnde(mate);
   bahnen[i].flaeche.setAttribute('d', bahnPfad(mate));
+  // Die Pfeilspitze sitzt direkt am Spieler und zeigt seine Startrichtung.
+  // Am Bahnende wirkte sie wie ein zweites, unverbundenes Element.
   const grad = mate.richtung * 180 / Math.PI;
-  bahnen[i].spitze.setAttribute('d', 'M -26 -30 L 34 0 L -26 30 L -12 0 Z');
+  bahnen[i].spitze.setAttribute('d', 'M -22 -26 L 30 0 L -22 26 L -10 0 Z');
   bahnen[i].spitze.setAttribute('transform',
-    'translate(' + (e.x + Math.cos(mate.richtung) * 34) + ',' +
-                   (e.y + Math.sin(mate.richtung) * 34) + ') rotate(' + grad + ')');
+    'translate(' + (mate.x + Math.cos(mate.richtung) * 64) + ',' +
+                   (mate.y + Math.sin(mate.richtung) * 64) + ') rotate(' + grad + ')');
 }
 
 // --- Zustand ---------------------------------------------------------------
