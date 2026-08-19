@@ -30,6 +30,21 @@ export function bahnEnde(mate){
   };
 }
 
+// Umriss der Laufbahn als Kapselform (Rechteck mit runden Enden).
+// Als Pfad, damit die Bahn eine sichtbare Kante bekommt — ein reines
+// breites Band ohne Rand verschwindet optisch auf dem hellen Eis.
+export function bahnPfad(mate){
+  const e = bahnEnde(mate);
+  const vx = Math.cos(mate.richtung), vy = Math.sin(mate.richtung);
+  const px = -vy * BAHN_HALB, py = vx * BAHN_HALB;   // Normale
+  const r = BAHN_HALB;
+  return 'M ' + (mate.x + px) + ' ' + (mate.y + py) +
+         ' L ' + (e.x + px) + ' ' + (e.y + py) +
+         ' A ' + r + ' ' + r + ' 0 0 1 ' + (e.x - px) + ' ' + (e.y - py) +
+         ' L ' + (mate.x - px) + ' ' + (mate.y - py) +
+         ' A ' + r + ' ' + r + ' 0 0 1 ' + (mate.x + px) + ' ' + (mate.y + py) + ' Z';
+}
+
 // Abstand eines Punktes zur Bahnachse (Strecke Mitspieler → Bahnende).
 export function abstandZurBahn(p, mate){
   const e = bahnEnde(mate);

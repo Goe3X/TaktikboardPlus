@@ -62,30 +62,26 @@ export function vorschauStufe2(){
 export function vorschauStufe3(){
   const { svg, spieler } = baueEis({ interaktiv:false });
 
-  // Freie Laufbahn nach unten rechts
-  spieler.appendChild(svgEl('line', {
-    x1:470, y1:430, x2:760, y2:490,
-    stroke:'#fff', 'stroke-width':210, 'stroke-linecap':'round', opacity:'.15'
-  }));
-  spieler.appendChild(svgEl('path', {
-    d:'M -30 -34 L 34 0 L -30 34 L -14 0 Z', fill:'#fff', opacity:'.32',
-    transform:'translate(760,490) rotate(12)'
-  }));
-  // Versperrte Laufbahn oben
-  spieler.appendChild(svgEl('line', {
-    x1:490, y1:170, x2:770, y2:120,
-    stroke:'#fff', 'stroke-width':210, 'stroke-linecap':'round', opacity:'.15'
-  }));
+  function bahn(x1, y1, x2, y2){
+    return svgEl('line', {
+      x1:x1, y1:y1, x2:x2, y2:y2,
+      stroke:'var(--wir)', 'stroke-width':210, 'stroke-linecap':'round',
+      opacity:'.26'
+    });
+  }
+
+  spieler.appendChild(bahn(470, 430, 740, 480));   // freie Bahn unten
+  spieler.appendChild(bahn(490, 170, 750, 130));   // versperrte Bahn oben
 
   spieler.appendChild(spielstein(490, 170, 40, FARBE.wir));
-  spieler.appendChild(spielstein(690, 140, 40, FARBE.geg));   // steht in der Bahn
+  spieler.appendChild(spielstein(680, 145, 40, FARBE.geg));   // steht in der Bahn
   spieler.appendChild(spielstein(470, 430, 40, FARBE.wir));
-  spieler.appendChild(spielstein(370, 250, 40, FARBE.geg));
+  spieler.appendChild(spielstein(340, 250, 40, FARBE.geg));
 
-  spieler.appendChild(spielstein(220, 300, 54, FARBE.wir, true));
+  spieler.appendChild(spielstein(210, 300, 54, FARBE.wir, true));
 
   // Puck fliegt in den freien Raum
-  const p = svgEl('g', {transform:'translate(640,468)'});
+  const p = svgEl('g', {transform:'translate(650,466)'});
   p.appendChild(svgEl('ellipse', {rx:22, ry:16, fill:'#0C1319', stroke:'#fff', 'stroke-width':5}));
   spieler.appendChild(p);
 

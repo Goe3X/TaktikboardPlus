@@ -12,8 +12,8 @@ import { svgEl, setze, stern, FARBE } from './svg.js';
 import { baueEis, pfeilRichtung } from './eisflaeche.js';
 import { machZiehbar } from './ziehen.js';
 import { feiern, konfettiLeeren } from './feiern.js';
-import { neueSituation, inBahn, bahnEnde, abstandZurBahn,
-         BAHN_HALB, BAHN_LAENGE } from './situation3.js';
+import { neueSituation, inBahn, bahnEnde, bahnPfad,
+         abstandZurBahn } from './situation3.js';
 
 const TOR_LINIE    = 720;
 const PUCK_ABSTAND = {x:0, y:52};
@@ -53,31 +53,29 @@ const puck = svgEl('g');
 puck.appendChild(svgEl('ellipse', {rx:22, ry:16, fill:'#0C1319', stroke:'#fff', 'stroke-width':5}));
 spieler.appendChild(puck);
 
-// Zwei Bahnen: breites Band plus Pfeilspitze am Ende.
+// Zwei Bahnen: Fläche mit gestrichelter Kante plus Pfeilspitze am Ende.
 const bahnen = [0,1].map(() => {
   const g = svgEl('g', {class:'bahn'});
-  const band = svgEl('line', {
-    stroke:'#fff', 'stroke-width': BAHN_HALB * 2,
-    'stroke-linecap':'round', opacity:'.15'
+  const flaeche = svgEl('path', {
+    fill:'var(--wir)', 'fill-opacity':'.26',
+    stroke:'var(--wir)', 'stroke-width':7,
+    'stroke-dasharray':'26 20', 'stroke-linecap':'round', 'stroke-opacity':'.95'
   });
-  const spitze = svgEl('path', {fill:'#fff', opacity:'.32'});
-  g.appendChild(band);
+  const spitze = svgEl('path', {fill:'var(--wir)', stroke:'#fff', 'stroke-width':4});
+  g.appendChild(flaeche);
   g.appendChild(spitze);
   bahnenG.appendChild(g);
-  return { g, band, spitze };
+  return { g, flaeche, spitze };
 });
 
 function zeichneBahn(i, mate){
   const e = bahnEnde(mate);
-  bahnen[i].band.setAttribute('x1', mate.x);
-  bahnen[i].band.setAttribute('y1', mate.y);
-  bahnen[i].band.setAttribute('x2', e.x);
-  bahnen[i].band.setAttribute('y2', e.y);
-  // Pfeilspitze in Laufrichtung
+  bahnen[i].flaeche.setAttribute('d', bahnPfad(mate));
   const grad = mate.richtung * 180 / Math.PI;
-  bahnen[i].spitze.setAttribute('d', 'M -30 -34 L 34 0 L -30 34 L -14 0 Z');
+  bahnen[i].spitze.setAttribute('d', 'M -26 -30 L 34 0 L -26 30 L -12 0 Z');
   bahnen[i].spitze.setAttribute('transform',
-    'translate(' + e.x + ',' + e.y + ') rotate(' + grad + ')');
+    'translate(' + (e.x + Math.cos(mate.richtung) * 34) + ',' +
+                   (e.y + Math.sin(mate.richtung) * 34) + ') rotate(' + grad + ')');
 }
 
 // --- Zustand ---------------------------------------------------------------
