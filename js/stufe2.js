@@ -131,9 +131,10 @@ function gelungenerPass(i){
   });
 }
 
-// Puckverlust. Der Puck kehrt NICHT zurück — das sah für ein Kind aus wie
-// ein Zuspiel vom Gegner. Stattdessen: Bild kippt auf Violett (dieselbe
-// Sprache wie in Stufe 1), Runde steht still, weiter geht es mit "Nochmal".
+// Puckverlust in zwei Schritten. Der Pass kommt ZUERST beim Mitspieler an
+// und wird ihm dort abgenommen — das erzählt "der war gedeckt".
+// Fliegt der Puck direkt zum Gegner, liest es sich als Fehlpass, also als
+// Zielfehler statt als Deckungsfehler.
 function abgefangen(i){
   const mate = lage.mates[i];
   let nah = 0;
@@ -144,19 +145,27 @@ function abgefangen(i){
   });
   const abfaenger = lage.geg[nah];
 
-  fliege(puck, puckPos, abfaenger, 340, () => {
-    verloren = true;
-    hatDaneben = true;
-    farbenSetzen(false);                 // Bild kippt auf Violett
-    gegner[nah].animate(
-      [{transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'},
-       {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1.3)'},
-       {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'}],
-      {duration:460, easing:'ease-out'}
-    );
-    aufgabeEl.textContent = 'Der war gedeckt — der Gegner hat den Puck.';
-    aufgabeEl.classList.add('geloest');
-    rufeNochmal();
+  // 1. Pass kommt an
+  fliege(puck, puckPos, mate, 380, () => {
+    laeuft = true;                       // bis zum Ende der Kette gesperrt
+    // 2. Der Gegner greift zu
+    setTimeout(() => {
+      gegner[nah].animate(
+        [{transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'},
+         {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1.35)'},
+         {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'}],
+        {duration:460, easing:'ease-out'}
+      );
+      // 3. Puck wechselt zum Gegner
+      fliege(puck, mate, abfaenger, 300, () => {
+        verloren = true;
+        hatDaneben = true;
+        farbenSetzen(false);             // Bild kippt auf Violett
+        aufgabeEl.textContent = 'Der war gedeckt — der Gegner hat den Puck.';
+        aufgabeEl.classList.add('geloest');
+        rufeNochmal();
+      });
+    }, 260);
   });
 }
 
