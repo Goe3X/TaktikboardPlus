@@ -17,6 +17,11 @@ export const VERSPERRT = BAHN_HALB + 40;    // Gegner näher: Bahn ist zu
 export const FREI      = BAHN_HALB + 130;   // Gegner weiter: Bahn ist offen
                                             // dazwischen: verboten
 
+// So nah darf der Puckführende beim Selbstfahren an einen Gegner nicht
+// heran. Hier definiert, weil der Generator damit rechnen muss —
+// stufe3.js importiert denselben Wert und zeichnet den Ring.
+export const GEFAHR = 118;
+
 const MIN_ABSTAND = 100;
 
 function d(a, b){ return Math.hypot(a.x - b.x, a.y - b.y); }
@@ -75,6 +80,18 @@ function imFeld(p, rand = 50){
          p.y > FELD.minY - 20 + rand && p.y < FELD.maxY + 20 - rand;
 }
 
+// Die Kapsel reicht BAHN_HALB über Start und Ende hinaus. Maßgeblich ist
+// hier die EISFLÄCHE (rund 20…980 × 20…580), nicht der engere
+// Bewegungsbereich der Spielsteine — sonst wird der Generator so streng,
+// dass er kaum noch gültige Anordnungen findet.
+function bahnImFeld(mate){
+  for (const p of [bahnStart(mate), bahnEnde(mate)]){
+    if (p.x - BAHN_HALB < 30 || p.x + BAHN_HALB > 970) return false;
+    if (p.y - BAHN_HALB < 30 || p.y + BAHN_HALB > 570) return false;
+  }
+  return true;
+}
+
 // Punkt auf der Bahnstrecke, seitlich versetzt.
 function punktInBahn(mate, anteil, seitlich){
   const a = bahnStart(mate), b = bahnEnde(mate);
@@ -85,33 +102,76 @@ function punktInBahn(mate, anteil, seitlich){
   };
 }
 
+// Liegen die zwei Bahnkörper überall weiter als ihre Breite auseinander?
+// Nur dann kann ein Tipp niemals in beide Bahnen fallen.
+function bahnenGetrennt(a, b){
+  const s = bahnStart(a), e = bahnEnde(a);
+  for (let i = 0; i <= 12; i++){
+    const p = {x: s.x + (e.x - s.x) * i/12, y: s.y + (e.y - s.y) * i/12};
+    if (abstandZurBahn(p, b) < BAHN_HALB * 2 + 10) return false;
+  }
+  return true;
+}
+
+// Gibt es einen Weg vom Puckführenden bis zur Torlinie, ohne in den
+// Zugriff eines Gegners zu geraten? Nur nötig, wenn keine Bahn frei ist —
+// dann ist Selbstfahren die einzige Lösung und muss möglich sein.
+// Grobes Raster genügt: drei Kreise, keine feine Geometrie.
+function wegFrei(du, geg, torLinie = 720){
+  const S = 20;
+  const spalten = Math.floor((FELD.maxX - FELD.minX) / S) + 1;
+  const zeilen  = Math.floor((FELD.maxY - FELD.minY) / S) + 1;
+  const offen = (x, y) => geg.every(g => Math.hypot(x - g.x, y - g.y) >= GEFAHR);
+
+  const start = [Math.round((du.x - FELD.minX) / S), Math.round((du.y - FELD.minY) / S)];
+  if (!offen(FELD.minX + start[0]*S, FELD.minY + start[1]*S)) return false;
+
+  const gesehen = new Set([start[0] * zeilen + start[1]]);
+  const warteschlange = [start];
+  while (warteschlange.length){
+    const [a, b] = warteschlange.pop();
+    if (FELD.minX + a*S > torLinie) return true;
+    for (const [da, db] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const na = a + da, nb = b + db;
+      if (na < 0 || nb < 0 || na >= spalten || nb >= zeilen) continue;
+      const schluessel = na * zeilen + nb;
+      if (gesehen.has(schluessel)) continue;
+      if (!offen(FELD.minX + na*S, FELD.minY + nb*S)) continue;
+      gesehen.add(schluessel);
+      warteschlange.push([na, nb]);
+    }
+  }
+  return false;
+}
+
 function versuch(freieAnzahl){
   // Puckführender steht hinten links.
-  const du = {x: zw(FELD.minX + 50, 330), y: zw(FELD.minY + 40, FELD.maxY - 60)};
+  const du = {x: zw(FELD.minX + 50, 280), y: zw(FELD.minY + 40, FELD.maxY - 60)};
 
   // Ein Mitspieler oben, einer unten — und die Laufrichtung zeigt jeweils
   // von der Mitte weg. Damit sind die zwei Bahnen zuverlässig getrennt und
   // ein Tipp kann nie in beide gleichzeitig fallen.
+  // Die Winkel sind klein gehalten, sonst läuft die Kapsel in die Bande.
   const oben = {
-    x: zw(du.x + 170, 700),
-    y: zw(FELD.minY + 40, 240),
-    richtung: zw(-0.60, 0.15)
+    x: zw(du.x + 170, 470),
+    y: zw(150, 250),
+    richtung: zw(-0.30, 0.12)
   };
   const unten = {
-    x: zw(du.x + 170, 700),
-    y: zw(360, FELD.maxY - 40),
-    richtung: zw(-0.15, 0.60)
+    x: zw(du.x + 170, 470),
+    y: zw(350, 450),
+    richtung: zw(-0.12, 0.30)
   };
   const mates = Math.random() < .5 ? [oben, unten] : [unten, oben];
 
   for (const m of mates){
     if (d(m, du) < 230) return null;
-    if (!imFeld(bahnEnde(m), 35)) return null;
+    if (!bahnImFeld(m)) return null;
   }
-  if (d(mates[0], mates[1]) < 280) return null;
-  // Kein Mitspieler darf in der Bahn des anderen stehen.
-  if (abstandZurBahn(mates[0], mates[1]) < BAHN_HALB + 50) return null;
-  if (abstandZurBahn(mates[1], mates[0]) < BAHN_HALB + 50) return null;
+  if (d(mates[0], mates[1]) < 240) return null;
+  // Die zwei Bahnkörper dürfen sich nirgends berühren, sonst könnte ein
+  // Tipp in beide fallen. Deshalb entlang beider Achsen abtasten.
+  if (!bahnenGetrennt(mates[0], mates[1])) return null;
 
   const reihenfolge = Math.random() < .5 ? [0, 1] : [1, 0];
   const sollFrei = [false, false];
@@ -155,6 +215,14 @@ function versuch(freieAnzahl){
     for (let j = i + 1; j < alle.length; j++)
       if (d(alle[i], alle[j]) < MIN_ABSTAND) return null;
 
+  // Kein Gegner darf den Puckführenden schon im Zugriff haben — sonst
+  // verliert das Kind den Puck beim allerersten Zug, ohne Fehler.
+  if (geg.some(g => d(g, du) < GEFAHR + 32)) return null;
+
+  // Ist keine Bahn frei, bleibt nur Selbstfahren. Dann muss die Torlinie
+  // auch wirklich erreichbar sein, sonst ist die Aufgabe unlösbar.
+  if (freieAnzahl === 0 && !wegFrei(du, geg)) return null;
+
   // Eindeutigkeit gegenrechnen: jede Bahn klar frei oder klar zu.
   const frei = [];
   for (let i = 0; i < 2; i++){
@@ -187,12 +255,12 @@ export function neueSituation(){
 // Nachgerechnet, damit sie die eigenen Regeln erfüllt.
 function NOTFALL(){
   return {
-    du: {x:220, y:300},
+    du: {x:190, y:300},
     mates: [
-      {x:500, y:160, richtung:-0.15},
-      {x:480, y:450, richtung: 0.20}
+      {x:400, y:190, richtung:-0.05},
+      {x:400, y:415, richtung: 0.05}
     ],
-    geg: [{x:690, y:131}, {x:120, y:380}, {x:180, y:130}],
+    geg: [{x:640, y:180}, {x:150, y:470}, {x:230, y:110}],
     frei: [false, true],
     freieAnzahl: 1
   };
