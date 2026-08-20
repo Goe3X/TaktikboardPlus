@@ -9,9 +9,9 @@
 
 import { FELD } from './eisflaeche.js';
 
-export const BAHN_LAENGE  = 320;   // wie weit die Laufbahn reicht
-export const BAHN_HALB    = 105;   // halbe Breite des Bandes
-export const BAHN_MIN     = 130;   // näher am Mitspieler zählt nicht als "in den Raum"
+export const BAHN_MIN     = 165;   // wo die Bahn beginnt (vor dem Spieler)
+export const BAHN_LAENGE  = 360;   // wo sie endet
+export const BAHN_HALB    = 105;   // Radius der Kapsel
 
 export const VERSPERRT = BAHN_HALB + 40;    // Gegner näher: Bahn ist zu
 export const FREI      = BAHN_HALB + 130;   // Gegner weiter: Bahn ist offen
@@ -22,7 +22,17 @@ const MIN_ABSTAND = 100;
 function d(a, b){ return Math.hypot(a.x - b.x, a.y - b.y); }
 function zw(min, max){ return min + Math.random() * (max - min); }
 
-// Endpunkt einer Laufbahn.
+// Die Bahn ist eine Kapsel um die Strecke bahnStart → bahnEnde.
+// WICHTIG: Anzeige und Trefferprüfung benutzen dieselbe Strecke. Solange
+// sie auseinanderlaufen, tippt das Kind auf eine sichtbare Fläche, die
+// nicht reagiert — genau das war vorher der Fall.
+export function bahnStart(mate){
+  return {
+    x: mate.x + Math.cos(mate.richtung) * BAHN_MIN,
+    y: mate.y + Math.sin(mate.richtung) * BAHN_MIN
+  };
+}
+
 export function bahnEnde(mate){
   return {
     x: mate.x + Math.cos(mate.richtung) * BAHN_LAENGE,
@@ -30,45 +40,33 @@ export function bahnEnde(mate){
   };
 }
 
-// Umriss der Laufbahn als Kapselform (Rechteck mit runden Enden).
-// Als Pfad, damit die Bahn eine sichtbare Kante bekommt — ein reines
-// breites Band ohne Rand verschwindet optisch auf dem hellen Eis.
-//
-// ACHTUNG Sweep-Flag: beide Halbkreise müssen mit 0 gezeichnet werden.
-// Mit 1 wölben sie nach INNEN und aus der Kapsel wird eine Sanduhr.
+// Umriss der Bahn als Kapselform.
+// ACHTUNG Sweep-Flag: beide Halbkreise brauchen 0. Mit 1 wölben sie nach
+// INNEN und aus der Kapsel wird eine Sanduhr.
 export function bahnPfad(mate){
-  const e = bahnEnde(mate);
-  const vx = Math.cos(mate.richtung), vy = Math.sin(mate.richtung);
-  const px = -vy * BAHN_HALB, py = vx * BAHN_HALB;   // Normale
+  const a = bahnStart(mate), b = bahnEnde(mate);
+  const px = -Math.sin(mate.richtung) * BAHN_HALB;
+  const py =  Math.cos(mate.richtung) * BAHN_HALB;
   const r = BAHN_HALB;
-  return 'M ' + (mate.x + px) + ' ' + (mate.y + py) +
-         ' L ' + (e.x + px) + ' ' + (e.y + py) +
-         ' A ' + r + ' ' + r + ' 0 0 0 ' + (e.x - px) + ' ' + (e.y - py) +
-         ' L ' + (mate.x - px) + ' ' + (mate.y - py) +
-         ' A ' + r + ' ' + r + ' 0 0 0 ' + (mate.x + px) + ' ' + (mate.y + py) + ' Z';
+  return 'M ' + (a.x + px) + ' ' + (a.y + py) +
+         ' L ' + (b.x + px) + ' ' + (b.y + py) +
+         ' A ' + r + ' ' + r + ' 0 0 0 ' + (b.x - px) + ' ' + (b.y - py) +
+         ' L ' + (a.x - px) + ' ' + (a.y - py) +
+         ' A ' + r + ' ' + r + ' 0 0 0 ' + (a.x + px) + ' ' + (a.y + py) + ' Z';
 }
 
-// Abstand eines Punktes zur Bahnachse (Strecke Mitspieler → Bahnende).
+// Abstand eines Punktes zur Bahnstrecke.
 export function abstandZurBahn(p, mate){
-  const e = bahnEnde(mate);
-  const vx = e.x - mate.x, vy = e.y - mate.y;
+  const a = bahnStart(mate), b = bahnEnde(mate);
+  const vx = b.x - a.x, vy = b.y - a.y;
   const laenge2 = vx*vx + vy*vy;
-  let t = ((p.x - mate.x) * vx + (p.y - mate.y) * vy) / laenge2;
+  let t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / laenge2;
   t = Math.max(0, Math.min(1, t));
-  return Math.hypot(p.x - (mate.x + t*vx), p.y - (mate.y + t*vy));
+  return Math.hypot(p.x - (a.x + t*vx), p.y - (a.y + t*vy));
 }
 
-/**
- * Liegt ein getippter Punkt im nutzbaren Teil der Bahn?
- * Nicht direkt am Mitspieler (das wäre kein Pass in den Raum) und
- * nicht seitlich daneben.
- */
+// Liegt ein getippter Punkt in der Bahn? Exakt die gezeichnete Kapsel.
 export function inBahn(p, mate){
-  const e = bahnEnde(mate);
-  const vx = e.x - mate.x, vy = e.y - mate.y;
-  const laenge = Math.hypot(vx, vy);
-  const entlang = ((p.x - mate.x) * vx + (p.y - mate.y) * vy) / laenge;
-  if (entlang < BAHN_MIN || entlang > laenge + 40) return false;
   return abstandZurBahn(p, mate) <= BAHN_HALB;
 }
 
@@ -77,43 +75,67 @@ function imFeld(p, rand = 50){
          p.y > FELD.minY - 20 + rand && p.y < FELD.maxY + 20 - rand;
 }
 
-// Punkt auf der Bahn, in einem bestimmten Anteil der Länge, seitlich versetzt.
+// Die Kapsel reicht BAHN_HALB über Start und Ende hinaus. Maßgeblich ist
+// hier die EISFLÄCHE (rund 20…980 × 20…580), nicht der engere
+// Bewegungsbereich der Spielsteine — sonst wird der Generator so streng,
+// dass er kaum noch gültige Anordnungen findet.
+function bahnImFeld(mate){
+  for (const p of [bahnStart(mate), bahnEnde(mate)]){
+    if (p.x - BAHN_HALB < 30 || p.x + BAHN_HALB > 970) return false;
+    if (p.y - BAHN_HALB < 30 || p.y + BAHN_HALB > 570) return false;
+  }
+  return true;
+}
+
+// Punkt auf der Bahnstrecke, seitlich versetzt.
 function punktInBahn(mate, anteil, seitlich){
-  const e = bahnEnde(mate);
-  const vx = (e.x - mate.x) / BAHN_LAENGE, vy = (e.y - mate.y) / BAHN_LAENGE;
+  const a = bahnStart(mate), b = bahnEnde(mate);
+  const vx = Math.cos(mate.richtung), vy = Math.sin(mate.richtung);
   return {
-    x: mate.x + vx * BAHN_LAENGE * anteil - vy * seitlich,
-    y: mate.y + vy * BAHN_LAENGE * anteil + vx * seitlich
+    x: a.x + (b.x - a.x) * anteil - vy * seitlich,
+    y: a.y + (b.y - a.y) * anteil + vx * seitlich
   };
+}
+
+// Liegen die zwei Bahnkörper überall weiter als ihre Breite auseinander?
+// Nur dann kann ein Tipp niemals in beide Bahnen fallen.
+function bahnenGetrennt(a, b){
+  const s = bahnStart(a), e = bahnEnde(a);
+  for (let i = 0; i <= 12; i++){
+    const p = {x: s.x + (e.x - s.x) * i/12, y: s.y + (e.y - s.y) * i/12};
+    if (abstandZurBahn(p, b) < BAHN_HALB * 2 + 10) return false;
+  }
+  return true;
 }
 
 function versuch(freieAnzahl){
   // Puckführender steht hinten links.
-  const du = {x: zw(FELD.minX + 50, 330), y: zw(FELD.minY + 40, FELD.maxY - 60)};
+  const du = {x: zw(FELD.minX + 50, 280), y: zw(FELD.minY + 40, FELD.maxY - 60)};
 
   // Ein Mitspieler oben, einer unten — und die Laufrichtung zeigt jeweils
   // von der Mitte weg. Damit sind die zwei Bahnen zuverlässig getrennt und
   // ein Tipp kann nie in beide gleichzeitig fallen.
+  // Die Winkel sind klein gehalten, sonst läuft die Kapsel in die Bande.
   const oben = {
-    x: zw(du.x + 170, 700),
-    y: zw(FELD.minY + 40, 240),
-    richtung: zw(-0.60, 0.15)
+    x: zw(du.x + 170, 470),
+    y: zw(150, 250),
+    richtung: zw(-0.30, 0.12)
   };
   const unten = {
-    x: zw(du.x + 170, 700),
-    y: zw(360, FELD.maxY - 40),
-    richtung: zw(-0.15, 0.60)
+    x: zw(du.x + 170, 470),
+    y: zw(350, 450),
+    richtung: zw(-0.12, 0.30)
   };
   const mates = Math.random() < .5 ? [oben, unten] : [unten, oben];
 
   for (const m of mates){
     if (d(m, du) < 230) return null;
-    if (!imFeld(bahnEnde(m), 35)) return null;
+    if (!bahnImFeld(m)) return null;
   }
-  if (d(mates[0], mates[1]) < 280) return null;
-  // Kein Mitspieler darf in der Bahn des anderen stehen.
-  if (abstandZurBahn(mates[0], mates[1]) < BAHN_HALB + 50) return null;
-  if (abstandZurBahn(mates[1], mates[0]) < BAHN_HALB + 50) return null;
+  if (d(mates[0], mates[1]) < 240) return null;
+  // Die zwei Bahnkörper dürfen sich nirgends berühren, sonst könnte ein
+  // Tipp in beide fallen. Deshalb entlang beider Achsen abtasten.
+  if (!bahnenGetrennt(mates[0], mates[1])) return null;
 
   const reihenfolge = Math.random() < .5 ? [0, 1] : [1, 0];
   const sollFrei = [false, false];
@@ -124,7 +146,7 @@ function versuch(freieAnzahl){
   // Für jede versperrte Bahn ein Gegner mitten hinein.
   for (let i = 0; i < 2; i++){
     if (sollFrei[i]) continue;
-    const p = punktInBahn(mates[i], zw(.45, .85), zw(-45, 45));
+    const p = punktInBahn(mates[i], zw(.25, .85), zw(-45, 45));
     if (!imFeld(p, 30)) return null;
     geg.push(p);
   }
@@ -189,12 +211,12 @@ export function neueSituation(){
 // Nachgerechnet, damit sie die eigenen Regeln erfüllt.
 function NOTFALL(){
   return {
-    du: {x:220, y:300},
+    du: {x:190, y:300},
     mates: [
-      {x:500, y:160, richtung:-0.15},
-      {x:480, y:450, richtung: 0.20}
+      {x:400, y:190, richtung:-0.05},
+      {x:400, y:415, richtung: 0.05}
     ],
-    geg: [{x:690, y:131}, {x:120, y:380}, {x:180, y:130}],
+    geg: [{x:640, y:180}, {x:150, y:430}, {x:200, y:140}],
     frei: [false, true],
     freieAnzahl: 1
   };
