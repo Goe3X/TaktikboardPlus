@@ -42,6 +42,8 @@ export function machZiehbar(svg, el, pos, haken = {}){
 
   el.addEventListener('pointermove', ev => {
     if (!zieht) return;
+    // Die Stufe kann mitten im Zug abbrechen (z. B. Puck verloren).
+    if (!aktiv()){ zieht = false; el.classList.remove('zieht'); return; }
     bewege(begrenze(svgPunkt(ev)));
   });
 

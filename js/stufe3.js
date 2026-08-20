@@ -9,14 +9,21 @@
 // derselbe Ausweg wie in Stufe 2.
 
 import { svgEl, setze, stern, FARBE } from './svg.js';
-import { baueEis, pfeilRichtung } from './eisflaeche.js';
+import { baueEis, pfeilRichtung, FELD } from './eisflaeche.js';
 import { machZiehbar } from './ziehen.js';
 import { feiern, konfettiLeeren } from './feiern.js';
 import { neueSituation, inBahn, bahnPfad,
-         abstandZurBahn } from './situation3.js';
+         abstandZurBahn, GEFAHR } from './situation3.js';
 
 const TOR_LINIE    = 720;
 const PUCK_ABSTAND = {x:0, y:52};
+// GEFAHR kommt aus situation3.js — der Generator muss mit demselben Wert
+// rechnen, sonst erzeugt er unlösbare Situationen. Der Ring um jeden
+// Gegner zeigt genau diesen Radius; unsichtbare Mathematik wirkt für ein
+// Kind willkürlich.
+// Wie weit der Gegner den eroberten Puck noch mitnimmt, damit man sieht,
+// wer ihn hat. Ohne das liegen Gegner und Mitspieler übereinander.
+const BEUTE_WEG    = 120;
 
 const AUFGABE = 'Welcher Laufweg ist frei? Tippe dorthin, wo er hinfährt!';
 
@@ -41,7 +48,18 @@ function token(r, fill, extra){
   return g;
 }
 
-const gegner = [0,1,2].map(() => token(40, FARBE.geg));
+// Gegner mit sichtbarem Gefahrenring: so weit reicht ihr Zugriff.
+const gegner = [0,1,2].map(() => {
+  const g = svgEl('g', {class:'token'});
+  g.appendChild(svgEl('circle', {
+    r: GEFAHR, fill:'var(--gegner)', 'fill-opacity':'.10',
+    stroke:'var(--gegner)', 'stroke-width':5,
+    'stroke-dasharray':'16 14', 'stroke-opacity':'.55'
+  }));
+  g.appendChild(svgEl('circle', {r:40, fill:FARBE.geg}));
+  spieler.appendChild(g);
+  return g;
+});
 const mates  = [0,1].map(() => token(40, FARBE.wir));
 
 const du = token(54, FARBE.wir, stern());
@@ -70,13 +88,13 @@ const bahnen = [0,1].map(() => {
 
 function zeichneBahn(i, mate){
   bahnen[i].flaeche.setAttribute('d', bahnPfad(mate));
-  // Die Pfeilspitze sitzt direkt am Spieler und zeigt seine Startrichtung.
-  // Am Bahnende wirkte sie wie ein zweites, unverbundenes Element.
+  // Die Spitze sitzt am Rand des Spielersteins (Radius 40) und zeigt in
+  // seine Startrichtung — so gehört sie sichtbar zu ihm.
   const grad = mate.richtung * 180 / Math.PI;
-  bahnen[i].spitze.setAttribute('d', 'M -22 -26 L 30 0 L -22 26 L -10 0 Z');
+  bahnen[i].spitze.setAttribute('d', 'M -16 -19 L 23 0 L -16 19 L -7 0 Z');
   bahnen[i].spitze.setAttribute('transform',
-    'translate(' + (mate.x + Math.cos(mate.richtung) * 64) + ',' +
-                   (mate.y + Math.sin(mate.richtung) * 64) + ') rotate(' + grad + ')');
+    'translate(' + (mate.x + Math.cos(mate.richtung) * 48) + ',' +
+                   (mate.y + Math.sin(mate.richtung) * 48) + ') rotate(' + grad + ')');
 }
 
 // --- Zustand ---------------------------------------------------------------
@@ -164,6 +182,27 @@ function gelungenerPass(i, ziel){
   });
 }
 
+// Wohin der Gegner den eroberten Puck mitnimmt: Richtung SEIN Tor, also
+// nach links. Damit sieht man, dass der Puck die Seite gewechselt hat.
+function beutePunkt(p){
+  return {
+    x: Math.max(FELD.minX, p.x - BEUTE_WEG),
+    y: Math.min(FELD.maxY, Math.max(FELD.minY, p.y + 34))
+  };
+}
+
+// Gemeinsamer Abschluss für jeden Puckverlust.
+function puckIstWeg(text){
+  laeuft = false;
+  verloren = true;
+  hatDaneben = true;
+  bahnenG.style.opacity = 0;
+  farbenSetzen(false);
+  aufgabeEl.textContent = text;
+  aufgabeEl.classList.add('geloest');
+  neuKnopf.classList.add('ruft');
+}
+
 // Versperrte Bahn: der Gegner ist vor dem Mitspieler am Puck.
 function abgefangen(i, ziel){
   const mate = lage.mates[i];
@@ -173,28 +212,56 @@ function abgefangen(i, ziel){
   });
   const abfaenger = lage.geg[nah];
 
+  // Der Mitspieler bleibt ein Stück VOR dem Puck stehen — sonst liegen
+  // er und der Gegner übereinander und es sieht aus, als hätte er ihn.
+  const laenge = Math.hypot(ziel.x - mate.x, ziel.y - mate.y) || 1;
+  const bremse = {
+    x: mate.x + (ziel.x - mate.x) * Math.max(0, (laenge - 110) / laenge),
+    y: mate.y + (ziel.y - mate.y) * Math.max(0, (laenge - 110) / laenge)
+  };
+
   laeuft = true;
   fliege(puck, puckPos, ziel, 500, () => { laeuft = true; });
-  // Mitspieler läuft los, kommt aber zu spät.
-  laufe(mates[i], mate, ziel, 700, 180);
-  // Der Gegner ist schneller.
+  laufe(mates[i], mate, bremse, 700, 180);
   laufe(gegner[nah], abfaenger, ziel, 520, 180, () => {
     gegner[nah].animate(
       [{transform:'translate(' + ziel.x + 'px,' + ziel.y + 'px) scale(1)'},
-       {transform:'translate(' + ziel.x + 'px,' + ziel.y + 'px) scale(1.35)'},
+       {transform:'translate(' + ziel.x + 'px,' + ziel.y + 'px) scale(1.3)'},
        {transform:'translate(' + ziel.x + 'px,' + ziel.y + 'px) scale(1)'}],
-      {duration:460, easing:'ease-out'}
+      {duration:400, easing:'ease-out'}
     );
+    // Und er fährt mit der Beute ein Stück Richtung eigenes Tor davon.
+    const weg = beutePunkt(ziel);
     setTimeout(() => {
-      laeuft = false;
-      verloren = true;
-      hatDaneben = true;
-      bahnenG.style.opacity = 0;
-      farbenSetzen(false);
-      aufgabeEl.textContent = 'Da stand ein Gegner — der hat den Puck.';
-      aufgabeEl.classList.add('geloest');
-      neuKnopf.classList.add('ruft');
-    }, 300);
+      laufe(gegner[nah], ziel, weg, 520);
+      laufe(puck, ziel, weg, 520, 0, () => {
+        puckIstWeg('Da stand ein Gegner — der hat den Puck.');
+      });
+    }, 340);
+  });
+}
+
+// Beim Selbstfahren zu nah an einen Gegner gekommen.
+function abgenommenBeimFahren(k){
+  const abfaenger = lage.geg[k];
+  laeuft = true;
+  bahnenG.style.opacity = 0;
+
+  fliege(puck, puckPos, abfaenger, 300, () => {
+    laeuft = true;
+    gegner[k].animate(
+      [{transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'},
+       {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1.3)'},
+       {transform:'translate(' + abfaenger.x + 'px,' + abfaenger.y + 'px) scale(1)'}],
+      {duration:400, easing:'ease-out'}
+    );
+    const weg = beutePunkt(abfaenger);
+    setTimeout(() => {
+      laufe(gegner[k], abfaenger, weg, 520);
+      laufe(puck, abfaenger, weg, 520, 0, () => {
+        puckIstWeg('Zu nah am Gegner — der hat dir den Puck abgenommen.');
+      });
+    }, 320);
   });
 }
 
@@ -242,6 +309,19 @@ svg.addEventListener('click', ev => {
   else abgefangen(i, p);
 });
 
+// Während des Fahrens: kommt er einem Gegner zu nah, ist der Puck weg.
+function duBewegt(){
+  puckAnDu();
+  if (!bereit()) return;
+  for (let k = 0; k < lage.geg.length; k++){
+    const g = lage.geg[k];
+    if (Math.hypot(duPos.x - g.x, duPos.y - g.y) < GEFAHR){
+      abgenommenBeimFahren(k);
+      return;
+    }
+  }
+}
+
 function duLoslassen(){
   if (!bereit()) return;
   if (!keineBahnFrei()){
@@ -261,7 +341,7 @@ function duLoslassen(){
 
 machZiehbar(svg, du, duPos, {
   beiLoslassen: duLoslassen,
-  beiBewegung: puckAnDu,
+  beiBewegung: duBewegt,
   aktiv: bereit
 });
 
