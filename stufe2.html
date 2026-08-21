@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Taktikboard">
+<meta name="theme-color" content="#16212B">
+<title>Wer ist frei?</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="css/board.css">
+</head>
+<body>
+<div class="rahmen">
+
+  <div class="kopf">
+    <a class="zurueck" href="index.html" aria-label="Zurück zur Auswahl">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19"/></svg>
+    </a>
+    <div class="status"><span class="marke"></span><span id="statusText">Du hast den Puck</span></div>
+    <div class="aufgabe" id="aufgabeText">Wer ist frei? Tippe ihn an — oder fahr selbst!</div>
+  </div>
+
+  <div class="eisflaeche"></div>
+
+  <div class="steuerung">
+    <button class="rund-klein" id="neuKnopf" type="button" aria-label="Aufgabe nochmal">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 12 A8 8 0 1 1 17.3 6.1"/>
+        <path d="M20 3.5 V6.6 H16.9"/>
+      </svg>
+    </button>
+    <button class="puck-knopf wuerfel-knopf" id="wuerfelKnopf" type="button" aria-label="Neue Aufgabe würfeln">
+      <svg id="wuerfelIcon" viewBox="0 0 48 48" aria-hidden="true">
+        <rect x="4" y="4" width="40" height="40" rx="10" fill="#fff"/>
+        <circle cx="15" cy="15" r="4.2" fill="#16212B"/>
+        <circle cx="33" cy="15" r="4.2" fill="#16212B"/>
+        <circle cx="24" cy="24" r="4.2" fill="#16212B"/>
+        <circle cx="15" cy="33" r="4.2" fill="#16212B"/>
+        <circle cx="33" cy="33" r="4.2" fill="#16212B"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script type="module" src="js/stufe2.js"></script>
+<script src="js/offline.js"></script>
+</body>
+</html>
