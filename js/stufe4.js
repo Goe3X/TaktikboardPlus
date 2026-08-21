@@ -29,7 +29,7 @@ const BEUTE_WEG    = 120;
 
 const TEXTE = {
   abspiel: 'Spiel den Puck nach vorne — wer ist frei?',
-  aufbau:  'Jetzt lauf dich frei! Zieh dich nach vorne, wo kein Gegner steht.',
+  aufbau:  'Lauf dich frei! Zieh dich in den hellen Bereich.',
   schuss:  'Fahr in den hellen Bereich und tippe aufs Tor!'
 };
 
@@ -55,6 +55,47 @@ spieler.appendChild(zoneG);
 
 const bahnenG = svgEl('g');
 spieler.appendChild(bahnenG);
+
+// Freie Fläche für Schritt 2. Wird als Maske gebaut: helles Rechteck
+// vorne, aus dem die Gegnerringe und der Umkreis des Passgebers
+// ausgestanzt werden. Was übrig bleibt, ist genau das, was
+// istFreiePosition() erlaubt — deshalb kann man es sehen.
+const MASKE_ID = 'freiMaske';
+const maskeDefs = svgEl('defs');
+const maske = svgEl('mask', {id: MASKE_ID});
+const maskeGrund = svgEl('rect', {
+  x: AUFBAU_MIN_X, y: FELD.minY,
+  width: FELD.maxX - AUFBAU_MIN_X, height: FELD.maxY - FELD.minY,
+  fill: '#fff'
+});
+maske.appendChild(maskeGrund);
+const maskeGeber = svgEl('circle', {r: 200, fill: '#000'});
+maske.appendChild(maskeGeber);
+const maskeGegner = [0,1,2].map(() => {
+  const c = svgEl('circle', {r: GEFAHR, fill: '#000'});
+  maske.appendChild(c);
+  return c;
+});
+maskeDefs.appendChild(maske);
+svg.appendChild(maskeDefs);
+
+const freiFlaeche = svgEl('g');
+freiFlaeche.appendChild(svgEl('rect', {
+  x: AUFBAU_MIN_X, y: FELD.minY,
+  width: FELD.maxX - AUFBAU_MIN_X, height: FELD.maxY - FELD.minY,
+  fill: 'var(--wir)', 'fill-opacity': '.30',
+  mask: 'url(#' + MASKE_ID + ')'
+}));
+spieler.insertBefore(freiFlaeche, spieler.firstChild);
+
+function zeichneFreiFlaeche(){
+  maskeGeber.setAttribute('cx', geberPos.x);
+  maskeGeber.setAttribute('cy', geberPos.y);
+  lage.geg.forEach((g, i) => {
+    maskeGegner[i].setAttribute('cx', g.x);
+    maskeGegner[i].setAttribute('cy', g.y);
+  });
+}
 
 function token(r, fill, extra){
   const g = svgEl('g', {class:'token'});
@@ -179,6 +220,11 @@ function zeichne(){
   const zeigeZone = lage.typ === 'schuss';
   zoneG.style.display   = zeigeZone ? '' : 'none';
   torFeld.style.display = zeigeZone ? '' : 'none';
+
+  // Im Aufbau zeigt die helle Fläche genau die erlaubten Positionen.
+  const zeigeFrei = lage.typ === 'position';
+  freiFlaeche.style.display = zeigeFrei ? '' : 'none';
+  if (zeigeFrei) zeichneFreiFlaeche();
 
   // Der Puck liegt beim Sternspieler — außer im Aufbau, da hat ihn der
   // Mitspieler.
@@ -417,24 +463,12 @@ function duLoslassen(){
   }
 }
 
-// Milder Hinweis statt Strafe: der deckende Gegner pulsiert, oder — wenn
-// er einfach zu weit hinten steht — die Vorwärtsrichtung blinkt.
+// Milder Hinweis statt Strafe: die erlaubte Fläche blinkt. Das ist
+// eindeutig — vorher pulsierte je nach Fall der Gegner oder der große
+// Pfeil, und man musste raten, welche der Bedingungen gemeint war.
 function hinweisPosition(){
-  let k = -1, best = Infinity;
-  lage.geg.forEach((g, i) => {
-    const e = Math.hypot(duPos.x - g.x, duPos.y - g.y);
-    if (e < GEFAHR && e < best){ best = e; k = i; }
-  });
-  if (k >= 0){
-    gegner[k].animate(
-      [{transform:'translate(' + lage.geg[k].x + 'px,' + lage.geg[k].y + 'px) scale(1)'},
-       {transform:'translate(' + lage.geg[k].x + 'px,' + lage.geg[k].y + 'px) scale(1.18)'},
-       {transform:'translate(' + lage.geg[k].x + 'px,' + lage.geg[k].y + 'px) scale(1)'}],
-      {duration:700, iterations:2, easing:'ease-in-out'});
-  } else {
-    pfeilGross.animate([{opacity:.16},{opacity:.5},{opacity:.16}],
-                       {duration:800, iterations:2});
-  }
+  freiFlaeche.animate([{opacity:1},{opacity:.25},{opacity:1}],
+                      {duration:750, iterations:2});
 }
 
 machZiehbar(svg, du, duPos, {

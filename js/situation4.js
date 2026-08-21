@@ -284,11 +284,16 @@ export function baueAufbau(geber, stern){
            geg:[{x:640, y:120},{x:660, y:480},{x:420, y:300}] };
 }
 
-/** Steht der Spieler vorne, frei und weit genug vom Passgeber weg? */
+/**
+ * Steht der Spieler vorne, frei und weit genug vom Passgeber weg?
+ *
+ * Bewusst NUR diese drei Bedingungen, und alle drei werden in der Stufe
+ * als Fläche gezeichnet. Eine frühere Fassung verlangte zusätzlich, dass
+ * er nicht in der Schusszone steht — unsichtbar und fachlich falsch:
+ * vor dem Tor freizulaufen ist genau richtig.
+ */
 export function istFreiePosition(p, geber, geg){
   if (p.x < AUFBAU_MIN_X) return false;
   if (d(p, geber) < 200) return false;
-  // Direkt in der Schusszone wäre der Abschluss geschenkt.
-  if (d(p, TOR) < SCHUSSZONE) return false;
   return geg.every(g => d(g, p) >= GEFAHR);
 }
