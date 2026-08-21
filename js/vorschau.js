@@ -62,36 +62,68 @@ export function vorschauStufe2(){
 export function vorschauStufe3(){
   const { svg, spieler } = baueEis({ interaktiv:false });
 
-  function bahn(x1, y1, x2, y2){
+  // Bahn beginnt vor dem Spieler, Pfeilspitze sitzt am Spielerrand.
+  function bahn(mx, my, richtung){
     const g = svgEl('g');
+    const c = Math.cos(richtung), s = Math.sin(richtung);
     g.appendChild(svgEl('line', {
-      x1:x1, y1:y1, x2:x2, y2:y2,
+      x1: mx + c*165, y1: my + s*165,
+      x2: mx + c*360, y2: my + s*360,
       stroke:'var(--wir)', 'stroke-width':210, 'stroke-linecap':'round',
       opacity:'.26'
     }));
-    const grad = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
-    const ex = x1 + Math.cos(Math.atan2(y2-y1, x2-x1)) * 64;
-    const ey = y1 + Math.sin(Math.atan2(y2-y1, x2-x1)) * 64;
     g.appendChild(svgEl('path', {
-      d:'M -22 -26 L 30 0 L -22 26 L -10 0 Z',
+      d:'M -16 -19 L 23 0 L -16 19 L -7 0 Z',
       fill:'var(--wir)', stroke:'#fff', 'stroke-width':4,
-      transform:'translate(' + ex + ',' + ey + ') rotate(' + grad + ')'
+      transform:'translate(' + (mx + c*48) + ',' + (my + s*48) + ') rotate(' +
+                (richtung * 180 / Math.PI) + ')'
     }));
     return g;
   }
 
-  spieler.appendChild(bahn(470, 430, 740, 480));   // freie Bahn unten
-  spieler.appendChild(bahn(490, 170, 750, 130));   // versperrte Bahn oben
+  spieler.appendChild(bahn(400, 440, -0.10));   // freie Bahn unten
+  spieler.appendChild(bahn(390, 160,  0.10));   // versperrte Bahn oben
 
-  spieler.appendChild(spielstein(490, 170, 40, FARBE.wir));
-  spieler.appendChild(spielstein(680, 145, 40, FARBE.geg));   // steht in der Bahn
-  spieler.appendChild(spielstein(470, 430, 40, FARBE.wir));
-  spieler.appendChild(spielstein(340, 250, 40, FARBE.geg));
+  spieler.appendChild(spielstein(390, 160, 40, FARBE.wir));
+  spieler.appendChild(spielstein(660, 200, 40, FARBE.geg));   // steht in der Bahn
+  spieler.appendChild(spielstein(400, 440, 40, FARBE.wir));
+  spieler.appendChild(spielstein(300, 290, 40, FARBE.geg));
 
-  spieler.appendChild(spielstein(210, 300, 54, FARBE.wir, true));
+  spieler.appendChild(spielstein(160, 350, 54, FARBE.wir, true));
 
   // Puck fliegt in den freien Raum
-  const p = svgEl('g', {transform:'translate(650,466)'});
+  const p = svgEl('g', {transform:'translate(640,405)'});
+  p.appendChild(svgEl('ellipse', {rx:22, ry:16, fill:'#0C1319', stroke:'#fff', 'stroke-width':5}));
+  spieler.appendChild(p);
+
+  return svg;
+}
+
+// Stufe 4: der ganze Spielzug — zwei Pässe und der Abschluss.
+export function vorschauStufe4(){
+  const { svg, spieler } = baueEis({ interaktiv:false });
+
+  // Schusszone vor dem Tor
+  spieler.appendChild(svgEl('circle', {
+    cx:914, cy:300, r:250,
+    fill:'var(--wir)', 'fill-opacity':'.20',
+    stroke:'var(--wir)', 'stroke-width':7, 'stroke-dasharray':'26 20'
+  }));
+
+  // Der Weg des Pucks in drei Etappen
+  spieler.appendChild(svgEl('path', {
+    d:'M 190 330 L 470 180 L 700 400 L 890 300',
+    fill:'none', stroke:'#fff', 'stroke-width':13,
+    'stroke-dasharray':'28 24', 'stroke-linecap':'round', opacity:'.9'
+  }));
+
+  spieler.appendChild(spielstein(470, 180, 40, FARBE.wir));
+  spieler.appendChild(spielstein(700, 400, 40, FARBE.wir));
+  spieler.appendChild(spielstein(330, 430, 40, FARBE.geg));
+  spieler.appendChild(spielstein(620, 250, 40, FARBE.geg));
+  spieler.appendChild(spielstein(190, 330, 54, FARBE.wir, true));
+
+  const p = svgEl('g', {transform:'translate(890,300)'});
   p.appendChild(svgEl('ellipse', {rx:22, ry:16, fill:'#0C1319', stroke:'#fff', 'stroke-width':5}));
   spieler.appendChild(p);
 
@@ -102,5 +134,6 @@ export function vorschauStufe3(){
 export const VORSCHAU = {
   stufe1: vorschauStufe1,
   stufe2: vorschauStufe2,
-  stufe3: vorschauStufe3
+  stufe3: vorschauStufe3,
+  stufe4: vorschauStufe4
 };
