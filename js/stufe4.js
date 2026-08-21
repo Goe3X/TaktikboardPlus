@@ -1,30 +1,36 @@
 // Stufe 4: "Der ganze Spielzug"
 //
-// Drei Schritte, alle aus bekannten Mechaniken zusammengesetzt:
-//   1. Entscheidung — freien Mitspieler antippen ODER in seine Laufbahn tippen
-//   2. Entscheidung — dasselbe, der Puck landet in Tornähe
-//   3. Abschluss    — in die Schusszone fahren und das Tor antippen
+// Drei Schritte, jeder aus einer bekannten Mechanik:
+//   1. Abspiel   — freien Mitspieler antippen ODER in seine Laufbahn tippen
+//                  (Stufe 2 und 3)
+//   2. Aufbau    — der Mitspieler behält den Puck, das Kind zieht SEINEN
+//                  Spieler auf eine freie Position vorne; dann kommt der
+//                  Pass zurück zu ihm (Stufe 1)
+//   3. Abschluss — in die Schusszone fahren und das Tor antippen
 //
-// Selbstfahren ist in jedem Schritt möglich und die einzige Lösung, wenn
-// niemand frei ist. Zu nah an einen Gegner heißt Puck weg — dann beginnt
-// der GANZE Spielzug von vorn. Das ist Absicht: so kann er neu gedacht
-// werden, statt eine schlechte Lage zu retten.
+// Der Sternspieler bleibt über den ganzen Spielzug derselbe. In einer
+// früheren Fassung sprang er zum Passempfänger — damit war "mein Spieler"
+// plötzlich jemand anderes.
+//
+// Puckverlust (Fehlpass in Schritt 1, Gegnerring in Schritt 3) setzt den
+// GANZEN Spielzug zurück. Eine gedeckte Position in Schritt 2 ist dagegen
+// KEIN Verlust: der Pass kommt einfach nicht, der Ring blinkt.
 
 import { svgEl, setze, stern, FARBE } from './svg.js';
 import { baueEis, pfeilRichtung, FELD } from './eisflaeche.js';
 import { machZiehbar } from './ziehen.js';
 import { feiern, konfettiLeeren } from './feiern.js';
 import { inBahn, bahnPfad, abstandZurBahn, GEFAHR } from './situation3.js';
-import { baueSchritt, baueAbschluss, startPosition,
-         TOR, SCHUSSZONE } from './situation4.js';
+import { baueSchritt, baueAufbau, istFreiePosition, startPosition,
+         TOR, SCHUSSZONE, AUFBAU_MIN_X } from './situation4.js';
 
 const PUCK_ABSTAND = {x:0, y:52};
 const BEUTE_WEG    = 120;
 
 const TEXTE = {
-  schritt1: 'Spiel den Puck nach vorne — wer ist frei?',
-  schritt2: 'Weiter! Bring den Puck vors Tor.',
-  schuss:   'Jetzt: fahr in den hellen Bereich und tippe aufs Tor!'
+  abspiel: 'Spiel den Puck nach vorne — wer ist frei?',
+  aufbau:  'Jetzt lauf dich frei! Zieh dich nach vorne, wo kein Gegner steht.',
+  schuss:  'Fahr in den hellen Bereich und tippe aufs Tor!'
 };
 
 const statusEl    = document.getElementById('statusText');
@@ -116,8 +122,10 @@ const bahnen = [0,1].map(() => {
 
 // --- Zustand ---------------------------------------------------------------
 let lage = null;
-let schritt = 1;              // 1, 2 oder 3
-let start = null;             // Startposition des ganzen Spielzugs
+let schritt = 1;              // 1 = Abspiel, 2 = Aufbau, 3 = Abschluss
+let start = null;             // Startposition des Sternspielers
+let geberIndex = 0;           // welcher Mitspieler in Schritt 2 den Puck hat
+let geberPos = null;          // und wo er steht
 let geschafft = false;
 let verloren  = false;
 let laeuft    = false;
@@ -152,30 +160,35 @@ function zeichneBahn(i, mate){
 
 // Zeigt die aktuelle Lage an. Ein Kind liest keine Schrittnummer —
 // die drei Punkte oben sind für den Vorleser.
+// Zeichnet die aktuelle Lage. Alle Spieler bleiben in jedem Schritt
+// sichtbar — sonst verschwindet die Mannschaft genau dann, wenn es
+// spannend wird.
 function zeichne(){
-  duPos.x = lage.du.x; duPos.y = lage.du.y;
   setze(du, duPos);
-  puckAnDu();
-
   lage.geg.forEach((p,i) => setze(gegner[i], p));
 
-  const zeigeMates = lage.typ !== 'schuss';
-  mates.forEach((g,i) => {
-    g.style.display = zeigeMates ? '' : 'none';
-    if (zeigeMates) setze(g, lage.mates[i]);
-  });
+  // Mitspieler stehen immer auf dem Eis.
+  matePos.forEach((p,i) => { mates[i].style.display = ''; setze(mates[i], p); });
+  // Angetippt werden darf nur im Abspiel-Schritt.
+  mates.forEach(g => g.classList.toggle('tippbar', lage.typ === 'spieler'));
 
   const zeigeBahnen = lage.typ === 'bahn';
   bahnenG.style.display = zeigeBahnen ? '' : 'none';
-  if (zeigeBahnen) lage.mates.forEach((p,i) => zeichneBahn(i, p));
+  if (zeigeBahnen) matePos.forEach((p,i) => zeichneBahn(i, p));
 
   const zeigeZone = lage.typ === 'schuss';
-  zoneG.style.display = zeigeZone ? '' : 'none';
+  zoneG.style.display   = zeigeZone ? '' : 'none';
   torFeld.style.display = zeigeZone ? '' : 'none';
 
+  // Der Puck liegt beim Sternspieler — außer im Aufbau, da hat ihn der
+  // Mitspieler.
+  if (lage.typ === 'position') setze(puck, puckNeben(geberPos));
+  else puckAnDu();
+
   schrittEl.textContent = '●'.repeat(schritt) + '○'.repeat(3 - schritt);
-  aufgabeEl.textContent = lage.typ === 'schuss' ? TEXTE.schuss
-                        : (schritt === 1 ? TEXTE.schritt1 : TEXTE.schritt2);
+  aufgabeEl.textContent = lage.typ === 'position' ? TEXTE.aufbau
+                        : lage.typ === 'schuss'   ? TEXTE.schuss
+                        : TEXTE.abspiel;
   aufgabeEl.classList.remove('geloest');
   neuKnopf.classList.remove('ruft');
   farbenSetzen(true);
@@ -187,15 +200,23 @@ function zeichne(){
   konfettiLeeren(konfetti);
 }
 
+function puckNeben(p){
+  return {x: p.x + PUCK_ABSTAND.x, y: p.y + PUCK_ABSTAND.y};
+}
+
 let ersteLage = null;          // damit "Nochmal" dieselbe Ausgangslage bringt
+const matePos = [null, null];  // wo die zwei Mitspieler gerade stehen
 
 function neuerSpielzug(neuWuerfeln){
   if (neuWuerfeln || !ersteLage){
     start = startPosition();
-    ersteLage = baueSchritt(start, 430, 600) || baueAbschluss(start);
+    ersteLage = baueSchritt(start, 430, 600);
   }
   schritt = 1;
   lage = ersteLage;
+  duPos.x = start.x; duPos.y = start.y;
+  matePos[0] = lage.mates[0];
+  matePos[1] = lage.mates[1];
   zeichne();
 }
 
@@ -235,23 +256,36 @@ function puckIstWeg(text){
   neuKnopf.classList.add('ruft');
 }
 
-// --- Weiter zum nächsten Schritt ------------------------------------------
-function weiter(neuePosition){
-  schritt++;
-  if (schritt === 2){
-    lage = baueSchritt(neuePosition, 620, 850) || baueAbschluss(neuePosition);
-  } else {
-    lage = baueAbschluss(neuePosition);
-  }
+// --- Übergänge -------------------------------------------------------------
+// Schritt 1 ist geglückt: der Mitspieler hat den Puck, der Sternspieler
+// bleibt stehen. Jetzt muss er sich freilaufen.
+function zumAufbau(zielPunkt, i){
+  geberIndex = i;
+  geberPos = zielPunkt;
+  matePos[i] = zielPunkt;
+  schritt = 2;
+  lage = baueAufbau(geberPos, {x: duPos.x, y: duPos.y});
   zeichne();
+}
+
+// Schritt 2 ist geglückt: der Pass kommt zurück zum Sternspieler.
+function zumAbschluss(){
+  laeuft = true;
+  const ziel = {x: duPos.x, y: duPos.y};
+  fliege(puck, puckNeben(geberPos), puckNeben(ziel), 480, () => {
+    laeuft = false;
+    schritt = 3;
+    lage = { typ:'schuss', du: ziel, mates: matePos, geg: lage.geg, frei: [] };
+    zeichne();
+  });
 }
 
 function gelungen(zielPunkt, i){
   laeuft = true;
   fliege(puck, puckPos, zielPunkt, 460, () => { laeuft = true; });
-  laufe(mates[i], lage.mates[i], zielPunkt, 560, 150, () => {
+  laufe(mates[i], matePos[i], zielPunkt, 560, 150, () => {
     laeuft = false;
-    weiter(zielPunkt);
+    zumAufbau(zielPunkt, i);
   });
 }
 
@@ -285,8 +319,8 @@ function naechsterGegnerZu(mate, alsBahn){
 
 function tippeSpieler(i){
   if (!bereit() || lage.typ !== 'spieler') return;
-  if (lage.frei[i]) gelungen(lage.mates[i], i);
-  else verlorenAn(naechsterGegnerZu(lage.mates[i], false), lage.mates[i],
+  if (lage.frei[i]) gelungen(matePos[i], i);
+  else verlorenAn(naechsterGegnerZu(matePos[i], false), matePos[i],
                   'Der war gedeckt — Puck weg. Von vorne!');
 }
 
@@ -301,16 +335,16 @@ svg.addEventListener('click', ev => {
   pt.x = ev.clientX; pt.y = ev.clientY;
   const p = pt.matrixTransform(svg.getScreenCTM().inverse());
 
-  const treffer = [0,1].filter(i => inBahn(p, lage.mates[i]));
+  const treffer = [0,1].filter(i => inBahn(p, matePos[i]));
   if (!treffer.length){
     bahnenG.animate([{opacity:1},{opacity:.35},{opacity:1}], {duration:900, iterations:2});
     return;
   }
   const i = treffer.length === 1 ? treffer[0]
-          : (abstandZurBahn(p, lage.mates[0]) <= abstandZurBahn(p, lage.mates[1]) ? 0 : 1);
+          : (abstandZurBahn(p, matePos[0]) <= abstandZurBahn(p, matePos[1]) ? 0 : 1);
 
   if (lage.frei[i]) gelungen(p, i);
-  else verlorenAn(naechsterGegnerZu(lage.mates[i], true), p,
+  else verlorenAn(naechsterGegnerZu(matePos[i], true), p,
                   'Da stand ein Gegner — Puck weg. Von vorne!');
 });
 
@@ -328,21 +362,26 @@ function schiessen(){
     torGlanz.animate([{opacity:1},{opacity:0}], {duration:900, iterations:2});
     aufgabeEl.textContent = 'TOR! Der ganze Spielzug hat gesessen.';
     aufgabeEl.classList.add('geloest');
-    feiern(konfetti, du, puls, {x:TOR.x - 60, y:TOR.y});
+    // Die Sterne sprühen aus dem PUCK — dort passiert das Tor.
+    feiern(konfetti, puck, null, {x:TOR.x, y:TOR.y});
   });
 }
 
 function duBewegt(){
-  puckAnDu();
+  // Im Aufbau hat der Mitspieler den Puck — der Stern fährt ohne.
+  if (lage.typ !== 'position') puckAnDu();
   if (!bereit()) return;
-  for (let k = 0; k < lage.geg.length; k++){
-    const g = lage.geg[k];
-    if (Math.hypot(duPos.x - g.x, duPos.y - g.y) < GEFAHR){
-      verlorenAn(k, {x:g.x, y:g.y}, 'Zu nah am Gegner — Puck weg. Von vorne!');
-      return;
+
+  // Nur mit Puck kostet die Nähe zu einem Gegner etwas.
+  if (lage.typ !== 'position'){
+    for (let k = 0; k < lage.geg.length; k++){
+      const g = lage.geg[k];
+      if (Math.hypot(duPos.x - g.x, duPos.y - g.y) < GEFAHR){
+        verlorenAn(k, {x:g.x, y:g.y}, 'Zu nah am Gegner — Puck weg. Von vorne!');
+        return;
+      }
     }
   }
-  // In der Schusszone leuchtet das Tor auf.
   if (lage.typ === 'schuss'){
     torGlanz.setAttribute('opacity', inZone(duPos) ? '.9' : '0');
   }
@@ -350,16 +389,51 @@ function duBewegt(){
 
 function duLoslassen(){
   if (!bereit()) return;
+
+  if (lage.typ === 'position'){
+    // Freigelaufen? Dann kommt der Pass. Sonst nur ein Hinweis, kein Verlust.
+    if (istFreiePosition(duPos, geberPos, lage.geg)) zumAbschluss();
+    else hinweisPosition();
+    return;
+  }
+
   if (lage.typ === 'schuss') return;      // hier darf er frei fahren
+
+  // Abspiel: niemand frei heißt selbst fahren — dann geht es weiter,
+  // sobald er vorne angekommen ist.
   if (!keinerFrei()){
     duPos.x = lage.du.x; duPos.y = lage.du.y;
     setze(du, duPos);
     puckAnDu();
     return;
   }
-  // Niemand frei: selbst nach vorne fahren bringt ihn in den nächsten Schritt.
-  if (duPos.x > (schritt === 1 ? 430 : 620)){
-    weiter({x: duPos.x, y: duPos.y});
+  if (duPos.x > AUFBAU_MIN_X){
+    geberIndex = 0;
+    geberPos = {x: duPos.x, y: duPos.y};
+    schritt = 3;
+    lage = { typ:'schuss', du:{x:duPos.x, y:duPos.y}, mates: matePos,
+             geg: lage.geg, frei: [] };
+    zeichne();
+  }
+}
+
+// Milder Hinweis statt Strafe: der deckende Gegner pulsiert, oder — wenn
+// er einfach zu weit hinten steht — die Vorwärtsrichtung blinkt.
+function hinweisPosition(){
+  let k = -1, best = Infinity;
+  lage.geg.forEach((g, i) => {
+    const e = Math.hypot(duPos.x - g.x, duPos.y - g.y);
+    if (e < GEFAHR && e < best){ best = e; k = i; }
+  });
+  if (k >= 0){
+    gegner[k].animate(
+      [{transform:'translate(' + lage.geg[k].x + 'px,' + lage.geg[k].y + 'px) scale(1)'},
+       {transform:'translate(' + lage.geg[k].x + 'px,' + lage.geg[k].y + 'px) scale(1.18)'},
+       {transform:'translate(' + lage.geg[k].x + 'px,' + lage.geg[k].y + 'px) scale(1)'}],
+      {duration:700, iterations:2, easing:'ease-in-out'});
+  } else {
+    pfeilGross.animate([{opacity:.16},{opacity:.5},{opacity:.16}],
+                       {duration:800, iterations:2});
   }
 }
 

@@ -237,26 +237,58 @@ export function startPosition(){
   return {x: zw(FELD.minX + 30, 175), y: zw(FELD.minY + 50, FELD.maxY - 70)};
 }
 
-/** Abschlussschritt: Gegner vor dem Tor, Schusszone muss erreichbar sein. */
-export function baueAbschluss(du){
-  for (let n = 0; n < 800; n++){
+export const AUFBAU_MIN_X = 520;   // ab hier gilt eine Position als "vorne"
+
+/**
+ * Schritt 2: Der Mitspieler hat den Puck und behält ihn. Das Kind zieht
+ * seinen eigenen Spieler auf eine freie Position, dann kommt der Pass.
+ *
+ * Der Aufbau muss zweierlei garantieren: es gibt überhaupt freie
+ * Positionen vorne, und von dort ist die Schusszone später erreichbar.
+ * Sonst steckt der Spielzug fest.
+ */
+export function baueAufbau(geber, stern){
+  for (let n = 0; n < 900; n++){
     const geg = [];
     let gut = true;
     for (let i = 0; i < 3; i++){
-      const p = {x: zw(520, 860), y: zw(FELD.minY + 40, FELD.maxY - 40)};
-      if (!imEis(p, 30) || d(p, du) < GEFAHR + 32){ gut = false; break; }
-      if (geg.some(g => d(g, p) < MIN_ABSTAND)){ gut = false; break; }
-      // Nicht direkt im Tor stehen
-      if (d(p, TOR) < 90){ gut = false; break; }
+      const p = {x: zw(300, 870), y: zw(FELD.minY + 40, FELD.maxY - 40)};
+      if (!imEis(p, 30))                          { gut = false; break; }
+      if (d(p, geber) < GEFAHR + 40)              { gut = false; break; }
+      if (d(p, stern) < GEFAHR + 20)              { gut = false; break; }
+      if (d(p, TOR) < 90)                         { gut = false; break; }
+      if (geg.some(g => d(g, p) < MIN_ABSTAND))   { gut = false; break; }
       geg.push(p);
     }
     if (!gut) continue;
-    // Der Weg in die Schusszone muss offen sein …
-    if (!wegZurZone(du, geg)) continue;
-    // … aber nicht geschenkt: mindestens ein Gegner nah an der Zone.
-    if (!geg.some(g => d(g, TOR) < SCHUSSZONE + 120)) continue;
-    return { typ:'schuss', du, mates:[], geg, frei:[] };
+
+    // Der Abschluss darf nicht geschenkt sein.
+    if (!geg.some(g => d(g, TOR) < SCHUSSZONE + 140)) continue;
+
+    // Genug freie Anspielpunkte, von denen aus die Zone erreichbar ist?
+    let brauchbar = 0;
+    for (let x = AUFBAU_MIN_X; x <= 870 && brauchbar < 8; x += 30){
+      for (let y = FELD.minY + 30; y <= FELD.maxY - 30 && brauchbar < 8; y += 30){
+        const p = {x, y};
+        if (!istFreiePosition(p, geber, geg)) continue;
+        if (!wegZurZone(p, geg)) continue;
+        brauchbar++;
+      }
+    }
+    if (brauchbar < 8) continue;
+
+    return { typ:'position', geber, geg, mates:[], frei:[] };
   }
-  return { typ:'schuss', du, mates:[],
-           geg:[{x:700, y:150},{x:700, y:450},{x:600, y:300}], frei:[] };
+  // Rückfall: weit gestreute Gegner, damit vorne sicher Platz bleibt.
+  return { typ:'position', geber, mates:[], frei:[],
+           geg:[{x:640, y:120},{x:660, y:480},{x:420, y:300}] };
+}
+
+/** Steht der Spieler vorne, frei und weit genug vom Passgeber weg? */
+export function istFreiePosition(p, geber, geg){
+  if (p.x < AUFBAU_MIN_X) return false;
+  if (d(p, geber) < 200) return false;
+  // Direkt in der Schusszone wäre der Abschluss geschenkt.
+  if (d(p, TOR) < SCHUSSZONE) return false;
+  return geg.every(g => d(g, p) >= GEFAHR);
 }
