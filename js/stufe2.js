@@ -10,6 +10,7 @@
 import { svgEl, setze, stern, FARBE } from './svg.js';
 import { baueEis, pfeilRichtung } from './eisflaeche.js';
 import { machZiehbar } from './ziehen.js';
+import { wuerfle, starteWuerfel } from './wuerfel.js';
 import { feiern, konfettiLeeren } from './feiern.js';
 import { neueSituation } from './situation2.js';
 
@@ -211,14 +212,10 @@ machZiehbar(svg, du, duPos, {
 });
 
 document.getElementById('wuerfelKnopf').addEventListener('click', () => {
-  wuerfelIcon.animate(
-    [{transform:'rotate(0deg) scale(1)'},
-     {transform:'rotate(360deg) scale(1.2)'},
-     {transform:'rotate(720deg) scale(1)'}],
-    {duration:500, easing:'ease-out'}
-  );
+  wuerfle(wuerfelIcon);
   anwenden(true);
 });
 neuKnopf.addEventListener('click', () => anwenden(false));
 
 anwenden(true);
+starteWuerfel(wuerfelIcon);

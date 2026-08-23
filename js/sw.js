@@ -2,7 +2,7 @@
 // VERSION bei jeder Änderung hochzählen — sonst sieht das iPad die alte Fassung.
 // Und: JEDE neue Datei muss hier in DATEIEN eingetragen werden, sonst
 // funktioniert Offline nur halb — und das merkt man erst in der Kabine.
-const VERSION = 'taktikboard-v19';
+const VERSION = 'taktikboard-v20';
 const DATEIEN = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const DATEIEN = [
   './manifest.webmanifest',
   './css/board.css',
   './js/svg.js',
+  './js/wuerfel.js',
   './js/eisflaeche.js',
   './js/ziehen.js',
   './js/feiern.js',
