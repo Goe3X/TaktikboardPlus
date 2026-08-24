@@ -262,10 +262,13 @@ function inReichweite(p){
 }
 
 function linieZeigen(von, nach){
+  // ACHTUNG: 'inline' setzen, nicht ''. Ein leerer Wert entfernt nur die
+  // Inline-Angabe, danach greift wieder das display:none aus dem
+  // Stylesheet — die Linie bliebe unsichtbar.
   [linie, linieKern].forEach(l => {
     l.setAttribute('x1', von.x); l.setAttribute('y1', von.y);
     l.setAttribute('x2', nach.x); l.setAttribute('y2', nach.y);
-    l.style.display = '';
+    l.style.display = 'inline';
   });
 }
 
