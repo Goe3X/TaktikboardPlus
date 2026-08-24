@@ -56,6 +56,10 @@ body{
   background:var(--aktiv);
   border:.14em solid rgba(255,255,255,.85);
 }
+/* Fortschritt im Spielzug — für den Vorleser, nicht fürs Kind. */
+.status .schritte{letter-spacing:.18em;margin-left:.4em}
+/* Das Tor ist in Stufe 4 antippbar. */
+.tor-feld{cursor:pointer}
 /* Der Aufgabentext ist zum Vorlesen — deshalb groß und ruhig. */
 .aufgabe{
   font-size:clamp(20px,3.6vmin,38px);
