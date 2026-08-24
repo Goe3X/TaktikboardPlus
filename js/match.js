@@ -43,8 +43,10 @@ document.querySelector('.eisflaeche').appendChild(svg);
 
 // Pass- und Schusslinie: wird während der Animation gezeigt, damit man
 // sieht, warum ein Gegner abfangen konnte.
-const linie = svgEl('line', {class:'spiellinie'});
+const linie     = svgEl('line', {class:'spiellinie'});
+const linieKern = svgEl('line', {class:'spiellinie-kern'});
 spieler.appendChild(linie);
+spieler.appendChild(linieKern);
 
 // Reichweitenkreis um den Puckführenden — was man sieht, ist was gilt.
 const reichweite = svgEl('circle', {
@@ -84,6 +86,11 @@ const steine = {
 const puck = svgEl('g');
 puck.appendChild(svgEl('ellipse', {rx:22, ry:16, fill:'#0C1319', stroke:'#fff', 'stroke-width':5}));
 spieler.appendChild(puck);
+
+// Die Linie gehört über die Spielsteine — sonst sieht man nicht, durch
+// wen sie läuft, und genau das ist ihre Aussage.
+spieler.insertBefore(linie, puck);
+spieler.insertBefore(linieKern, puck);
 
 // --- Zustand ---------------------------------------------------------------
 let ziel = ZIEL_STANDARD;
@@ -153,6 +160,7 @@ document.getElementById('startKnopf').addEventListener('click', () => {
 
 // --- Bully -----------------------------------------------------------------
 function zumBully(){
+  linieAus();
   phase = 'bully';
   angreifer = null;
   amZug = null;
@@ -194,6 +202,7 @@ function offene(team){
 }
 
 function zumPlatzieren(){
+  linieAus();
   phase = 'platzieren';
   gesetzt = {gold:[false,false,false], violett:[false,false,false]};
   // Der Puckführende bleibt stehen und gilt als gesetzt.
@@ -228,7 +237,6 @@ function aufstellungFertig(){
 function puckPos(){ return pos[angreifer][puckSpieler]; }
 
 function aktionAnzeigen(){
-  if (phase !== 'animation') linieAus();
   const zeigen = phase === 'aktion';
   reichweite.style.display = zeigen ? '' : 'none';
   if (zeigen){
@@ -254,12 +262,17 @@ function inReichweite(p){
 }
 
 function linieZeigen(von, nach){
-  linie.setAttribute('x1', von.x); linie.setAttribute('y1', von.y);
-  linie.setAttribute('x2', nach.x); linie.setAttribute('y2', nach.y);
-  linie.style.display = '';
+  [linie, linieKern].forEach(l => {
+    l.setAttribute('x1', von.x); l.setAttribute('y1', von.y);
+    l.setAttribute('x2', nach.x); l.setAttribute('y2', nach.y);
+    l.style.display = '';
+  });
 }
 
-function linieAus(){ linie.style.display = 'none'; }
+function linieAus(){
+  linie.style.display = 'none';
+  linieKern.style.display = 'none';
+}
 
 function reichweiteBlinken(){
   reichweite.animate([{opacity:1},{opacity:.25},{opacity:1}], {duration:700, iterations:2});
@@ -349,7 +362,6 @@ function passe(ort){
       const gegner = verteidiger();
       const ziel = pos[gegner][blocker];
       fliege(puck, puckNeben(von), puckNeben(ziel), 420, () => {
-        linieAus();
         besitzWechsel(gegner, blocker,
                       'Abgefangen! ' + TEAMS[gegner].name + ' hat den Puck.');
       });
@@ -362,7 +374,6 @@ function passAusfuehren(empfaenger, ort){
   laufe(steine[empfaenger.team][empfaenger.i], empfaenger.p, ort, 620, 160, () => {
     pos[empfaenger.team][empfaenger.i] = {x: ort.x, y: ort.y};
     setze(puck, puckNeben(ort));
-    linieAus();
     if (empfaenger.team === angreifer){
       puckSpieler = empfaenger.i;
       weiterMitZug('Angekommen! ' + TEAMS[angreifer].name + ' bleibt am Puck.');
@@ -405,7 +416,7 @@ function schiesse(){
   linieZeigen(von, tor);
 
   if (decker < 0){
-    fliege(puck, puckNeben(von), tor, 340, () => { linieAus(); torGefallen(); });
+    fliege(puck, puckNeben(von), tor, 340, () => torGefallen());
     return;
   }
   // Gedeckt: der Würfel entscheidet.
@@ -414,10 +425,9 @@ function schiesse(){
   anim.onfinish = () => {
     const augen = letzteAugen();
     if (TREFFER_AUGEN.includes(augen)){
-      fliege(puck, puckNeben(von), tor, 340, () => { linieAus(); torGefallen(); });
+      fliege(puck, puckNeben(von), tor, 340, () => torGefallen());
     } else {
       fliege(puck, puckNeben(von), puckNeben(pos[gegner][decker]), 420, () => {
-        linieAus();
         besitzWechsel(gegner, decker,
                       'Geblockt! ' + TEAMS[gegner].name + ' hat den Puck.');
       });

@@ -289,10 +289,17 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
   transition:fill .35s ease, stroke .35s ease;
 }
 
-/* Pass- und Schusslinie während der Animation — sie macht sichtbar,
-   warum ein Gegner abfangen konnte. */
+/* Pass- und Schusslinie — sie macht sichtbar, warum ein Gegner abfangen
+   konnte. Kräftig und voll deckend: heruntergerechnet auf Handygröße
+   bleiben von 8 Einheiten keine drei Bildschirmpixel übrig. Weißer Kern
+   auf dunklem Rand, damit sie auf Eis und auf Spielsteinen liest. */
 .spiellinie{
-  stroke:#0C1319;stroke-width:8;
-  stroke-dasharray:22 16;stroke-linecap:round;
-  opacity:.5;pointer-events:none;display:none;
+  stroke:#0C1319;stroke-width:18;
+  stroke-dasharray:30 20;stroke-linecap:round;
+  opacity:1;pointer-events:none;display:none;
+}
+.spiellinie-kern{
+  stroke:#fff;stroke-width:7;
+  stroke-dasharray:30 20;stroke-linecap:round;
+  opacity:1;pointer-events:none;display:none;
 }
