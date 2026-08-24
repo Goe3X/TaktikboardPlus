@@ -273,3 +273,12 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
   box-shadow:0 clamp(4px,.8vmin,9px) 0 rgba(0,0,0,.45);
 }
 .start-knopf:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
+
+/* Reichweite des Puckführenden — was man sieht, ist was gilt. */
+.reichweite{
+  fill:var(--aktiv);fill-opacity:.13;
+  stroke:var(--aktiv);stroke-width:9;
+  stroke-dasharray:30 22;stroke-linecap:round;
+  pointer-events:none;
+  transition:fill .35s ease, stroke .35s ease;
+}

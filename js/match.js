@@ -1,23 +1,30 @@
 // Match: Gold gegen Violett auf einem iPad.
 //
-// DIESER STAND enthält nur den Aufbau — Startaufstellung, Bully mit dem
-// Würfel, abwechselndes Platzieren und die Punktetafel. Die Aktionen
-// (passen, fahren, schießen) kommen im nächsten Schritt.
-//
 // Ablauf eines Spielzugs:
 //   1. Alle fünf Spieler OHNE Puck werden neu gesetzt, abwechselnd,
 //      die verteidigende Mannschaft beginnt
-//   2. Die Mannschaft mit Puck führt eine Aktion aus
+//   2. Die Mannschaft mit Puck führt EINE Aktion aus
+//
+// Drei Aktionen, alle innerhalb eines sichtbaren Reichweitenkreises:
+//   Aufs Eis tippen  = Pass. Wer dem Zielort am nächsten steht, bekommt
+//                      den Puck — auch ein Gegner. Das ersetzt "freier
+//                      Mann" und "Pass in den Raum" durch eine Regel.
+//   Puckführenden ziehen = selbst fahren. Zu nah an einem Gegner heißt
+//                      Puck weg.
+//   Auf das Tor tippen   = Schuss. Steht ein Gegner in der Schusslinie,
+//                      entscheidet der Würfel.
 //
 // Der Puckführende wird nicht mitgesetzt — ihn zu bewegen ist eine
-// Aktion (Selbstfahren), keine Aufstellung.
+// Aktion, keine Aufstellung.
 
 import { svgEl, setze, FARBE } from './svg.js';
 import { baueEis } from './eisflaeche.js';
 import { machZiehbar } from './ziehen.js';
 import { wuerfle, starteWuerfel } from './wuerfel.js';
-import { MITTE, TEAMS, AUFSTELLUNG, SPIELER_R,
-         ZIEL_AUSWAHL, ZIEL_STANDARD, platzFrei } from './matchregeln.js';
+import { feiern, konfettiLeeren } from './feiern.js';
+import { MITTE, TEAMS, AUFSTELLUNG, SPIELER_R, REICHWEITE, GEFAHR,
+         TREFFER_AUGEN, ZIEL_AUSWAHL, ZIEL_STANDARD,
+         platzFrei, abstandZurLinie } from './matchregeln.js';
 
 const statusEl    = document.getElementById('statusText');
 const aufgabeEl   = document.getElementById('aufgabeText');
@@ -31,8 +38,27 @@ const startBox    = document.getElementById('startBox');
 const zielKnoepfe = document.getElementById('zielKnoepfe');
 
 // --- Eisfläche -------------------------------------------------------------
-const { svg, spieler } = baueEis({ pfeil: false });
+const { svg, spieler, konfetti } = baueEis({ pfeil: false });
 document.querySelector('.eisflaeche').appendChild(svg);
+
+// Reichweitenkreis um den Puckführenden — was man sieht, ist was gilt.
+const reichweite = svgEl('circle', {
+  r: REICHWEITE, class:'reichweite'
+});
+spieler.appendChild(reichweite);
+
+// Antippbare Torflächen. Aktiv ist immer nur das Tor, auf das die
+// angreifende Mannschaft spielt.
+function torFeld(x){
+  const g = svgEl('g', {class:'tor-feld'});
+  g.appendChild(svgEl('rect', {x:x-38, y:215, width:76, height:170, rx:18, fill:'transparent'}));
+  const glanz = svgEl('rect', {x:x-32, y:222, width:64, height:156, rx:14,
+                               fill:'none', stroke:'#fff', 'stroke-width':8, opacity:'0'});
+  g.appendChild(glanz);
+  spieler.appendChild(g);
+  return {g, glanz};
+}
+const tore_feld = {gold: torFeld(914), violett: torFeld(86)};
 
 function spielstein(farbe, team){
   // Die Mannschaft steht als Klasse am Stein — die Ringfarbe kommt dann
@@ -124,7 +150,9 @@ function zumBully(){
   statusEl.textContent = 'Bully';
   aufgabeEl.textContent = 'Würfeln — wer bekommt den Puck?';
   wuerfelKnopf.classList.add('ruft');
+  konfettiLeeren(konfetti);
   zeichne();
+  aktionAnzeigen();
 }
 
 function bullyWuerfeln(){
@@ -159,6 +187,7 @@ function zumPlatzieren(){
   gesetzt[angreifer][puckSpieler] = true;
   amZug = verteidiger();          // die verteidigende Mannschaft beginnt
   ringeZeigen();
+  aktionAnzeigen();
 }
 
 // Nach jedem gesetzten Spieler wechselt das Recht — es sei denn, die
@@ -176,8 +205,178 @@ function aufstellungFertig(){
   ringeZeigen();
   farbeSetzen(angreifer);
   statusEl.textContent = TEAMS[angreifer].name + ' hat den Puck';
-  aufgabeEl.textContent = 'Aufstellung fertig. Die Aktionen kommen im nächsten Schritt.';
-  neuKnopf.classList.add('ruft');
+  aufgabeEl.textContent = 'Passen, fahren oder schießen — im hellen Kreis.';
+  neuKnopf.classList.remove('ruft');
+  aktionAnzeigen();
+}
+
+// --- Aktionen --------------------------------------------------------------
+function puckPos(){ return pos[angreifer][puckSpieler]; }
+
+function aktionAnzeigen(){
+  const zeigen = phase === 'aktion';
+  reichweite.style.display = zeigen ? '' : 'none';
+  if (zeigen){
+    const p = puckPos();
+    reichweite.setAttribute('cx', p.x);
+    reichweite.setAttribute('cy', p.y);
+  }
+  ['gold','violett'].forEach(t => {
+    const aktiv = zeigen && t === angreifer;
+    tore_feld[t].g.style.display = aktiv ? '' : 'none';
+    tore_feld[t].glanz.setAttribute('opacity', aktiv && torInReichweite() ? '.9' : '0');
+  });
+}
+
+function torInReichweite(){
+  if (!angreifer) return false;
+  const t = TEAMS[angreifer].tor;
+  return Math.hypot(puckPos().x - t.x, puckPos().y - t.y) <= REICHWEITE;
+}
+
+function inReichweite(p){
+  return Math.hypot(p.x - puckPos().x, p.y - puckPos().y) <= REICHWEITE;
+}
+
+function reichweiteBlinken(){
+  reichweite.animate([{opacity:1},{opacity:.25},{opacity:1}], {duration:700, iterations:2});
+}
+
+// Animationen
+function fliege(el, von, nach, dauer, danach){
+  const a = el.animate(
+    [{transform:'translate(' + von.x + 'px,' + von.y + 'px)'},
+     {transform:'translate(' + nach.x + 'px,' + nach.y + 'px)'}],
+    {duration:dauer, easing:'cubic-bezier(.3,.8,.4,1)'});
+  a.onfinish = () => { setze(el, nach); if (danach) danach(); };
+}
+
+function laufe(el, von, nach, dauer, verzoegerung, danach){
+  const a = el.animate(
+    [{transform:'translate(' + von.x + 'px,' + von.y + 'px)'},
+     {transform:'translate(' + nach.x + 'px,' + nach.y + 'px)'}],
+    {duration:dauer, delay:verzoegerung || 0, easing:'cubic-bezier(.4,.1,.3,1)', fill:'both'});
+  a.onfinish = () => { setze(el, nach); a.cancel(); if (danach) danach(); };
+}
+
+/** Wer steht dem Zielort am nächsten? Der Puckführende zählt nicht mit. */
+function naechsterZu(ort){
+  let best = null;
+  alleSteine().forEach(s => {
+    if (s.team === angreifer && s.i === puckSpieler) return;
+    const d = Math.hypot(s.p.x - ort.x, s.p.y - ort.y);
+    if (!best || d < best.d) best = {team: s.team, i: s.i, p: s.p, d};
+  });
+  return best;
+}
+
+function passe(ort){
+  const empfaenger = naechsterZu(ort);
+  if (!empfaenger) return;
+  phase = 'animation';
+  aktionAnzeigen();
+
+  const von = puckNeben(puckPos());
+  fliege(puck, von, ort, 480);
+  laufe(steine[empfaenger.team][empfaenger.i], empfaenger.p, ort, 620, 160, () => {
+    pos[empfaenger.team][empfaenger.i] = {x: ort.x, y: ort.y};
+    setze(puck, puckNeben(ort));
+    if (empfaenger.team === angreifer){
+      puckSpieler = empfaenger.i;
+      weiterMitZug('Angekommen! ' + TEAMS[angreifer].name + ' bleibt am Puck.');
+    } else {
+      besitzWechsel(empfaenger.team, empfaenger.i,
+                    'Abgefangen! ' + TEAMS[empfaenger.team].name + ' hat den Puck.');
+    }
+  });
+}
+
+function fahre(neuerOrt){
+  // Zu nah an einem Gegner? Dann ist der Puck weg.
+  const gegner = verteidiger();
+  let k = -1;
+  pos[gegner].forEach((g, i) => {
+    if (Math.hypot(neuerOrt.x - g.x, neuerOrt.y - g.y) < GEFAHR) k = i;
+  });
+  pos[angreifer][puckSpieler] = {x: neuerOrt.x, y: neuerOrt.y};
+  zeichne();
+  if (k >= 0){
+    phase = 'animation';
+    aktionAnzeigen();
+    fliege(puck, puckNeben(neuerOrt), puckNeben(pos[gegner][k]), 380, () => {
+      besitzWechsel(gegner, k, 'Zu nah! ' + TEAMS[gegner].name + ' hat den Puck.');
+    });
+  } else {
+    weiterMitZug('Gefahren. Weiter geht es.');
+  }
+}
+
+function schiesse(){
+  const von = puckPos();
+  const tor = TEAMS[angreifer].tor;
+  const gegner = verteidiger();
+  const decker = pos[gegner].findIndex(g => abstandZurLinie(g, von, tor) < GEFAHR);
+
+  phase = 'animation';
+  aktionAnzeigen();
+
+  if (decker < 0){
+    fliege(puck, puckNeben(von), tor, 340, () => torGefallen());
+    return;
+  }
+  // Gedeckt: der Würfel entscheidet.
+  aufgabeEl.textContent = 'Der Schuss ist gedeckt — der Würfel entscheidet!';
+  const anim = wuerfle(wuerfelIcon);
+  anim.onfinish = () => {
+    const augen = letzteAugen();
+    if (TREFFER_AUGEN.includes(augen)){
+      fliege(puck, puckNeben(von), tor, 340, () => torGefallen());
+    } else {
+      fliege(puck, puckNeben(von), puckNeben(pos[gegner][decker]), 420, () => {
+        besitzWechsel(gegner, decker,
+                      'Geblockt! ' + TEAMS[gegner].name + ' hat den Puck.');
+      });
+    }
+  };
+}
+
+function torGefallen(){
+  tore[angreifer]++;
+  zeichne();
+  feiern(konfetti, puck, null, TEAMS[angreifer].tor);
+  const glanz = tore_feld[angreifer].glanz;
+  glanz.animate([{opacity:1},{opacity:0}], {duration:900, iterations:2});
+  statusEl.textContent = 'TOR für ' + TEAMS[angreifer].name;
+  aufgabeEl.textContent = tore[angreifer] >= ziel
+    ? TEAMS[angreifer].name + ' gewinnt das Match!'
+    : 'Tor! Weiter mit dem Bully.';
+  if (tore[angreifer] >= ziel){
+    phase = 'ende';
+    aktionAnzeigen();
+    wuerfelKnopf.classList.add('ruft');
+    return;
+  }
+  phase = 'pause';
+  aktionAnzeigen();
+  setTimeout(zumBully, 1400);
+}
+
+function besitzWechsel(team, index, text){
+  angreifer = team;
+  puckSpieler = index;
+  farbeSetzen(angreifer);
+  aufgabeEl.textContent = text;
+  setze(puck, puckNeben(pos[team][index]));
+  phase = 'pause';
+  aktionAnzeigen();
+  setTimeout(zumPlatzieren, 1100);
+}
+
+function weiterMitZug(text){
+  aufgabeEl.textContent = text;
+  phase = 'pause';
+  aktionAnzeigen();
+  setTimeout(zumPlatzieren, 900);
 }
 
 function ringeZeigen(){
@@ -198,12 +397,30 @@ function ringeZeigen(){
 ['gold','violett'].forEach(team => {
   steine[team].forEach((stein, index) => {
     const p = {x:0, y:0};
+    const darfSetzen = () => phase === 'platzieren' &&
+                              team === amZug &&
+                              !gesetzt[team][index];
+    // In der Aktionsphase darf nur der Puckführende fahren.
+    const darfFahren = () => phase === 'aktion' &&
+                             team === angreifer &&
+                             index === puckSpieler;
+
     machZiehbar(svg, stein, p, {
-      aktiv: () => phase === 'platzieren' &&
-                   team === amZug &&
-                   !gesetzt[team][index],
-      beiBewegung: () => {},
+      aktiv: () => darfSetzen() || darfFahren(),
+      beiBewegung: () => {
+        if (darfFahren()) setze(puck, puckNeben(p));
+      },
       beiLoslassen: () => {
+        if (darfFahren()){
+          if (!inReichweite(p)){
+            setze(stein, pos[team][index]);
+            setze(puck, puckNeben(pos[team][index]));
+            reichweiteBlinken();
+            return;
+          }
+          fahre(p);
+          return;
+        }
         const andere = alleSteine()
           .filter(s => !(s.team === team && s.i === index))
           .map(s => s.p);
@@ -227,13 +444,44 @@ function ringeZeigen(){
   });
 });
 
-// --- Knöpfe ----------------------------------------------------------------
-wuerfelKnopf.addEventListener('click', () => {
-  if (phase === 'bully') bullyWuerfeln();
-  else if (phase === 'aktion' || phase === 'platzieren') zumBully();
-  else wuerfle(wuerfelIcon);
+// --- Tippen auf dem Eis ----------------------------------------------------
+function svgPunkt(ev){
+  const pt = svg.createSVGPoint();
+  pt.x = ev.clientX; pt.y = ev.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+svg.addEventListener('click', ev => {
+  if (phase !== 'aktion') return;
+  // Der Puckführende wird gezogen, nicht angetippt.
+  if (steine[angreifer][puckSpieler].contains(ev.target)) return;
+
+  // Auf das eigene Angriffstor getippt? Dann ist es ein Schuss.
+  if (tore_feld[angreifer].g.contains(ev.target)){
+    if (!torInReichweite()){ reichweiteBlinken(); return; }
+    schiesse();
+    return;
+  }
+
+  const p = svgPunkt(ev);
+  if (!inReichweite(p)){ reichweiteBlinken(); return; }
+  passe(p);
 });
 
+// --- Knöpfe ----------------------------------------------------------------
+wuerfelKnopf.addEventListener('click', () => {
+  if (phase === 'bully'){ bullyWuerfeln(); return; }
+  if (phase === 'ende'){
+    // Neues Match mit demselben Ziel.
+    wuerfelKnopf.classList.remove('ruft');
+    tore = {gold: 0, violett: 0};
+    zumBully();
+    return;
+  }
+  if (phase === 'aktion' || phase === 'platzieren') zumBully();
+});
+
+// Aufstellung des laufenden Spielzugs verwerfen und neu setzen.
 neuKnopf.addEventListener('click', () => {
   neuKnopf.classList.remove('ruft');
   if (phase === 'aktion' || phase === 'platzieren') zumPlatzieren();

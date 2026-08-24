@@ -1,6 +1,7 @@
 // Regelwerk des Matches. Alles, was man zum Ausbalancieren drehen will,
 // steht hier — nicht verteilt in der Spiellogik.
 
+
 import { FELD } from './eisflaeche.js';
 
 export const MITTE = {x: 500, y: 300};
