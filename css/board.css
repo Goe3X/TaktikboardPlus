@@ -274,11 +274,17 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
 }
 .start-knopf:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
 
-/* Reichweite des Puckführenden — was man sieht, ist was gilt. */
+/* Reichweite des Puckführenden — was man sieht, ist was gilt.
+   transform-box/-origin sind nötig, damit das Aufwachsen um den
+   Kreismittelpunkt läuft und nicht um den SVG-Nullpunkt. Die Größe
+   wird über transform animiert, nicht über r: animierte SVG-Geometrie
+   ist in iOS-Safari unzuverlässig. */
 .reichweite{
   fill:var(--aktiv);fill-opacity:.13;
   stroke:var(--aktiv);stroke-width:9;
   stroke-dasharray:30 22;stroke-linecap:round;
   pointer-events:none;
+  transform-box:fill-box;
+  transform-origin:center;
   transition:fill .35s ease, stroke .35s ease;
 }

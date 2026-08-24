@@ -93,6 +93,14 @@ let phase = 'start';           // start | bully | platzieren | aktion | ende
 let gesetzt = {gold:[false,false,false], violett:[false,false,false]};
 let amZug = null;              // 'gold' oder 'violett'
 
+// Nach dem Loslassen eines Spielsteins feuert der Browser noch ein
+// click-Ereignis. Fällt genau in diesen Moment der Wechsel in die
+// Aktionsphase, würde das Setzen des letzten Spielers sofort als Pass
+// gewertet. Deshalb eine kurze Sperre nach jedem Zug mit dem Finger.
+let klickSperreBis = 0;
+const AUFBAU_MS = 560;         // wie lange der Reichweitenkreis aufwächst
+function klickSperren(){ klickSperreBis = performance.now() + 400; }
+
 function verteidiger(){ return angreifer === 'gold' ? 'violett' : 'gold'; }
 
 function alleSteine(){
@@ -208,6 +216,7 @@ function aufstellungFertig(){
   aufgabeEl.textContent = 'Passen, fahren oder schießen — im hellen Kreis.';
   neuKnopf.classList.remove('ruft');
   aktionAnzeigen();
+  reichweiteAufbauen();
 }
 
 // --- Aktionen --------------------------------------------------------------
@@ -240,6 +249,22 @@ function inReichweite(p){
 
 function reichweiteBlinken(){
   reichweite.animate([{opacity:1},{opacity:.25},{opacity:1}], {duration:700, iterations:2});
+}
+
+/**
+ * Der Reichweitenkreis wächst auf und blitzt am Ende kurz auf.
+ * Solange er wächst, wird nicht getippt — dadurch wird aus der nötigen
+ * Klick-Sperre ein sichtbares "jetzt bist du dran" statt einer toten
+ * Wartezeit.
+ */
+function reichweiteAufbauen(){
+  klickSperreBis = performance.now() + AUFBAU_MS;
+  reichweite.animate([
+    {transform:'scale(.06)', opacity:.45},
+    {transform:'scale(1)',   opacity:1,  offset:.70},
+    {transform:'scale(1.06)', opacity:1, offset:.85},
+    {transform:'scale(1)',   opacity:1}
+  ], {duration: AUFBAU_MS, easing:'cubic-bezier(.25,.9,.35,1)'});
 }
 
 // Animationen
@@ -416,6 +441,7 @@ function ringeZeigen(){
             setze(stein, pos[team][index]);
             setze(puck, puckNeben(pos[team][index]));
             reichweiteBlinken();
+            klickSperren();
             return;
           }
           fahre(p);
@@ -428,6 +454,7 @@ function ringeZeigen(){
           pos[team][index] = {x: p.x, y: p.y};
           gesetzt[team][index] = true;
           zeichne();
+          klickSperren();
           zugWechseln();
         } else {
           // Zu nah an einem anderen Spieler — zurück auf den alten Platz.
@@ -453,6 +480,7 @@ function svgPunkt(ev){
 
 svg.addEventListener('click', ev => {
   if (phase !== 'aktion') return;
+  if (performance.now() < klickSperreBis) return;
   // Der Puckführende wird gezogen, nicht angetippt.
   if (steine[angreifer][puckSpieler].contains(ev.target)) return;
 
