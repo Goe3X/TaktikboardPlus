@@ -219,18 +219,17 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
 }
 
 /* Der Ring zeigt: dieser Spieler ist noch nicht gesetzt.
-   Er pulsiert nur bei der Mannschaft, die gerade am Zug ist.
-   Voll deckend und kräftig — bei 55 % war er auf dem hellen Eis kaum
-   zu sehen. Eine dunkle Unterlage habe ich probiert; sie legt nur
-   einen grauen Schleier zwischen die Striche. */
+   Volle Deckkraft wie die Spielsteine selbst — halbtransparent geht auf
+   dem hellen Eis unter, erst recht heruntergerechnet auf Handygröße.
+   Wer am Zug ist, erkennt man am Pulsieren, nicht an der Deckkraft. */
 .wahl-ring{
-  fill:none;stroke-width:13;stroke-dasharray:26 18;stroke-linecap:round;opacity:0;
+  fill:none;stroke-width:20;stroke-dasharray:32 22;stroke-linecap:round;opacity:0;
 }
-.token.offen .wahl-ring{opacity:.75}
-.token.offen.am-zug .wahl-ring{opacity:1;animation:wahlPuls 1.3s ease-in-out infinite}
+.token.offen .wahl-ring{opacity:1}
+.token.offen.am-zug .wahl-ring{animation:wahlPuls 1.3s ease-in-out infinite}
 @keyframes wahlPuls{
   0%,100%{transform:scale(1)}
-  50%    {transform:scale(1.09)}
+  50%    {transform:scale(1.10)}
 }
 @media (prefers-reduced-motion:reduce){
   .token.offen.am-zug .wahl-ring{animation:none}
