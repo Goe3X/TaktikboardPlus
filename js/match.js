@@ -41,6 +41,11 @@ const zielKnoepfe = document.getElementById('zielKnoepfe');
 const { svg, spieler, konfetti } = baueEis({ pfeil: false });
 document.querySelector('.eisflaeche').appendChild(svg);
 
+// Pass- und Schusslinie: wird während der Animation gezeigt, damit man
+// sieht, warum ein Gegner abfangen konnte.
+const linie = svgEl('line', {class:'spiellinie'});
+spieler.appendChild(linie);
+
 // Reichweitenkreis um den Puckführenden — was man sieht, ist was gilt.
 const reichweite = svgEl('circle', {
   r: REICHWEITE, class:'reichweite'
@@ -223,6 +228,7 @@ function aufstellungFertig(){
 function puckPos(){ return pos[angreifer][puckSpieler]; }
 
 function aktionAnzeigen(){
+  if (phase !== 'animation') linieAus();
   const zeigen = phase === 'aktion';
   reichweite.style.display = zeigen ? '' : 'none';
   if (zeigen){
@@ -246,6 +252,14 @@ function torInReichweite(){
 function inReichweite(p){
   return Math.hypot(p.x - puckPos().x, p.y - puckPos().y) <= REICHWEITE;
 }
+
+function linieZeigen(von, nach){
+  linie.setAttribute('x1', von.x); linie.setAttribute('y1', von.y);
+  linie.setAttribute('x2', nach.x); linie.setAttribute('y2', nach.y);
+  linie.style.display = '';
+}
+
+function linieAus(){ linie.style.display = 'none'; }
 
 function reichweiteBlinken(){
   reichweite.animate([{opacity:1},{opacity:.25},{opacity:1}], {duration:700, iterations:2});
@@ -295,23 +309,67 @@ function naechsterZu(ort){
   return best;
 }
 
+/**
+ * Steht ein Gegner im Weg? Liefert seinen Index oder -1.
+ * Gilt gleichermaßen für Pass und Schuss: "Gegner in der Linie heißt
+ * Würfel" ist damit EINE Regel statt zweier verschiedener.
+ * Der Blocker ganz nah am Puckführenden zählt nicht mit — sonst wäre
+ * ein Bedränger schon ein Passverbot.
+ */
+function blockerInLinie(von, nach){
+  const gegner = verteidiger();
+  let k = -1, best = Infinity;
+  pos[gegner].forEach((g, i) => {
+    if (Math.hypot(g.x - von.x, g.y - von.y) < 60) return;
+    const d = abstandZurLinie(g, von, nach);
+    if (d < GEFAHR && d < best){ best = d; k = i; }
+  });
+  return k;
+}
+
 function passe(ort){
   const empfaenger = naechsterZu(ort);
   if (!empfaenger) return;
+  const von = puckPos();
+  const blocker = blockerInLinie(von, ort);
+
   phase = 'animation';
   aktionAnzeigen();
+  linieZeigen(von, ort);
 
-  const von = puckNeben(puckPos());
-  fliege(puck, von, ort, 480);
+  if (blocker < 0){ passAusfuehren(empfaenger, ort); return; }
+
+  // Jemand steht im Weg — der Würfel entscheidet, wie beim Schuss.
+  aufgabeEl.textContent = 'Ein Gegner steht im Passweg — der Würfel entscheidet!';
+  const anim = wuerfle(wuerfelIcon);
+  anim.onfinish = () => {
+    if (TREFFER_AUGEN.includes(letzteAugen())){
+      passAusfuehren(empfaenger, ort);
+    } else {
+      const gegner = verteidiger();
+      const ziel = pos[gegner][blocker];
+      fliege(puck, puckNeben(von), puckNeben(ziel), 420, () => {
+        linieAus();
+        besitzWechsel(gegner, blocker,
+                      'Abgefangen! ' + TEAMS[gegner].name + ' hat den Puck.');
+      });
+    }
+  };
+}
+
+function passAusfuehren(empfaenger, ort){
+  fliege(puck, puckNeben(puckPos()), ort, 480);
   laufe(steine[empfaenger.team][empfaenger.i], empfaenger.p, ort, 620, 160, () => {
     pos[empfaenger.team][empfaenger.i] = {x: ort.x, y: ort.y};
     setze(puck, puckNeben(ort));
+    linieAus();
     if (empfaenger.team === angreifer){
       puckSpieler = empfaenger.i;
       weiterMitZug('Angekommen! ' + TEAMS[angreifer].name + ' bleibt am Puck.');
     } else {
       besitzWechsel(empfaenger.team, empfaenger.i,
-                    'Abgefangen! ' + TEAMS[empfaenger.team].name + ' hat den Puck.');
+                    'Da war der Gegner näher — ' + TEAMS[empfaenger.team].name +
+                    ' hat den Puck.');
     }
   });
 }
@@ -340,13 +398,14 @@ function schiesse(){
   const von = puckPos();
   const tor = TEAMS[angreifer].tor;
   const gegner = verteidiger();
-  const decker = pos[gegner].findIndex(g => abstandZurLinie(g, von, tor) < GEFAHR);
+  const decker = blockerInLinie(von, tor);
 
   phase = 'animation';
   aktionAnzeigen();
+  linieZeigen(von, tor);
 
   if (decker < 0){
-    fliege(puck, puckNeben(von), tor, 340, () => torGefallen());
+    fliege(puck, puckNeben(von), tor, 340, () => { linieAus(); torGefallen(); });
     return;
   }
   // Gedeckt: der Würfel entscheidet.
@@ -355,9 +414,10 @@ function schiesse(){
   anim.onfinish = () => {
     const augen = letzteAugen();
     if (TREFFER_AUGEN.includes(augen)){
-      fliege(puck, puckNeben(von), tor, 340, () => torGefallen());
+      fliege(puck, puckNeben(von), tor, 340, () => { linieAus(); torGefallen(); });
     } else {
       fliege(puck, puckNeben(von), puckNeben(pos[gegner][decker]), 420, () => {
+        linieAus();
         besitzWechsel(gegner, decker,
                       'Geblockt! ' + TEAMS[gegner].name + ' hat den Puck.');
       });

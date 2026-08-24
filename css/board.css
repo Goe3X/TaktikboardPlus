@@ -288,3 +288,11 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
   transform-origin:center;
   transition:fill .35s ease, stroke .35s ease;
 }
+
+/* Pass- und Schusslinie während der Animation — sie macht sichtbar,
+   warum ein Gegner abfangen konnte. */
+.spiellinie{
+  stroke:#0C1319;stroke-width:8;
+  stroke-dasharray:22 16;stroke-linecap:round;
+  opacity:.5;pointer-events:none;display:none;
+}
