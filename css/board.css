@@ -170,24 +170,31 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
           calc(clamp(10px,2vmin,24px) + env(safe-area-inset-left));
   background:var(--wir-tief);
 }
+/* Zwei Spalten: bei fünf Kacheln passt sonst nichts mehr auf einen
+   Handybildschirm, und Scrollen ist für ein Kind die schlechtere Lösung. */
 .kacheln{
-  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
-  gap:clamp(14px,3vmin,34px);
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:clamp(10px,2.2vmin,26px);
+  width:100%;
+  max-width:min(96vw, 860px);
+  align-items:start;
+  justify-items:stretch;
 }
 /* Bewusst nur Bild, kein Text — er kann noch nicht lesen. */
 .kachel{
-  width:clamp(160px,30vmin,300px);
-  border:clamp(5px,.9vmin,9px) solid #fff;
-  border-radius:clamp(20px,3.4vmin,36px);
+  width:100%;
+  border:clamp(4px,.7vmin,8px) solid #fff;
+  border-radius:clamp(16px,2.8vmin,32px);
   background:#0C1319;
-  padding:clamp(9px,1.6vmin,18px);
-  box-shadow:0 clamp(6px,1.1vmin,12px) 0 rgba(0,0,0,.45);
+  padding:clamp(6px,1.2vmin,14px);
+  box-shadow:0 clamp(5px,.9vmin,11px) 0 rgba(0,0,0,.45);
   cursor:pointer;
   display:block;
   transition:transform .18s ease;
 }
 .kachel:active{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
-.kachel svg{width:100%;height:auto;display:block;border-radius:clamp(12px,2vmin,22px)}
+.kachel svg{width:100%;height:auto;display:block;border-radius:clamp(10px,1.8vmin,20px)}
 
 /* --- Match ---------------------------------------------------------------- */
 
@@ -211,15 +218,17 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
   letter-spacing:.08em;margin-left:.6em;
 }
 
-/* Der Spielstein, der gerade gesetzt werden darf */
-.wahl-ring{fill:none;stroke:#fff;stroke-width:7;stroke-dasharray:20 16;opacity:0}
-.token.waehlbar .wahl-ring{opacity:.95;animation:wahlPuls 1.4s ease-in-out infinite}
+/* Der Ring zeigt: dieser Spieler ist noch nicht gesetzt.
+   Er pulsiert nur bei der Mannschaft, die gerade am Zug ist. */
+.wahl-ring{fill:none;stroke-width:7;stroke-dasharray:20 16;opacity:0}
+.token.offen .wahl-ring{opacity:.55}
+.token.offen.am-zug .wahl-ring{opacity:1;animation:wahlPuls 1.4s ease-in-out infinite}
 @keyframes wahlPuls{
-  0%,100%{opacity:.45}
+  0%,100%{opacity:.5}
   50%    {opacity:1}
 }
 @media (prefers-reduced-motion:reduce){
-  .token.waehlbar .wahl-ring{animation:none;opacity:.95}
+  .token.offen.am-zug .wahl-ring{animation:none;opacity:1}
 }
 
 /* Startkarte: wie viele Tore zum Sieg */

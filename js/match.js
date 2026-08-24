@@ -36,7 +36,9 @@ document.querySelector('.eisflaeche').appendChild(svg);
 
 function spielstein(farbe){
   const g = svgEl('g', {class:'token'});
-  g.appendChild(svgEl('circle', {r: SPIELER_R + 26, class:'wahl-ring'}));
+  // Ring in der Mannschaftsfarbe: solange er zu sehen ist, steht dieser
+  // Spieler noch nicht.
+  g.appendChild(svgEl('circle', {r: SPIELER_R + 26, class:'wahl-ring', stroke: farbe}));
   g.appendChild(svgEl('circle', {r: SPIELER_R, fill: farbe}));
   spieler.appendChild(g);
   return g;
@@ -59,9 +61,10 @@ let angreifer = null;          // 'gold' oder 'violett'
 let puckSpieler = 0;           // Index innerhalb des angreifenden Teams
 let phase = 'start';           // start | bully | platzieren | aktion | ende
 
-// Reihenfolge beim Setzen: Verteidiger beginnt, dann abwechselnd.
-let reihe = [];                // [{team, index}, …]
-let reiheNr = 0;
+// Beim Setzen wechseln die Mannschaften ab, aber JEDE wählt selbst,
+// welchen ihrer offenen Spieler sie als nächsten stellt.
+let gesetzt = {gold:[false,false,false], violett:[false,false,false]};
+let amZug = null;              // 'gold' oder 'violett'
 
 function verteidiger(){ return angreifer === 'gold' ? 'violett' : 'gold'; }
 
@@ -112,9 +115,10 @@ document.getElementById('startKnopf').addEventListener('click', () => {
 function zumBully(){
   phase = 'bully';
   angreifer = null;
+  amZug = null;
   pos.gold    = AUFSTELLUNG.gold.map(p => ({...p}));
   pos.violett = AUFSTELLUNG.violett.map(p => ({...p}));
-  ringeAus();
+  ringeZeigen();
   farbeSetzen('gold');
   statusEl.textContent = 'Bully';
   aufgabeEl.textContent = 'Würfeln — wer bekommt den Puck?';
@@ -143,43 +147,50 @@ function letzteAugen(){
 }
 
 // --- Platzieren ------------------------------------------------------------
+function offene(team){
+  return gesetzt[team].filter((g,i) => !g).length;
+}
+
 function zumPlatzieren(){
   phase = 'platzieren';
-  const v = verteidiger();
-  // Verteidiger beginnt, dann abwechselnd. Der Puckführende ist nicht dabei.
-  const vListe = [0,1,2].map(i => ({team: v, index: i}));
-  const aListe = [0,1,2].filter(i => i !== puckSpieler)
-                        .map(i => ({team: angreifer, index: i}));
-  reihe = [];
-  for (let i = 0; i < 3; i++){
-    if (vListe[i]) reihe.push(vListe[i]);
-    if (aListe[i]) reihe.push(aListe[i]);
-  }
-  reiheNr = 0;
-  naechsterStein();
+  gesetzt = {gold:[false,false,false], violett:[false,false,false]};
+  // Der Puckführende bleibt stehen und gilt als gesetzt.
+  gesetzt[angreifer][puckSpieler] = true;
+  amZug = verteidiger();          // die verteidigende Mannschaft beginnt
+  ringeZeigen();
 }
 
-function naechsterStein(){
-  ringeAus();
-  if (reiheNr >= reihe.length){
-    phase = 'aktion';
-    statusEl.textContent = TEAMS[angreifer].name + ' hat den Puck';
-    aufgabeEl.textContent = 'Aufstellung fertig. Die Aktionen kommen im nächsten Schritt.';
-    farbeSetzen(angreifer);
-    neuKnopf.classList.add('ruft');
-    return;
-  }
-  const dran = reihe[reiheNr];
-  farbeSetzen(dran.team);
+// Nach jedem gesetzten Spieler wechselt das Recht — es sei denn, die
+// andere Mannschaft ist schon fertig.
+function zugWechseln(){
+  const andere = amZug === 'gold' ? 'violett' : 'gold';
+  if (offene(andere) > 0) amZug = andere;
+  if (offene('gold') === 0 && offene('violett') === 0) aufstellungFertig();
+  else ringeZeigen();
+}
+
+function aufstellungFertig(){
+  phase = 'aktion';
+  amZug = null;
+  ringeZeigen();
+  farbeSetzen(angreifer);
   statusEl.textContent = TEAMS[angreifer].name + ' hat den Puck';
-  aufgabeEl.textContent = TEAMS[dran.team].name + ' stellt auf — Spieler ' +
-                          (reiheNr + 1) + ' von ' + reihe.length;
-  steine[dran.team][dran.index].classList.add('waehlbar');
+  aufgabeEl.textContent = 'Aufstellung fertig. Die Aktionen kommen im nächsten Schritt.';
+  neuKnopf.classList.add('ruft');
 }
 
-function ringeAus(){
-  ['gold','violett'].forEach(t =>
-    steine[t].forEach(s => s.classList.remove('waehlbar')));
+function ringeZeigen(){
+  ['gold','violett'].forEach(t => steine[t].forEach((s,i) => {
+    const offen = phase === 'platzieren' && !gesetzt[t][i];
+    s.classList.toggle('offen', offen);
+    s.classList.toggle('am-zug', offen && t === amZug);
+  }));
+  if (phase !== 'platzieren') return;
+  farbeSetzen(amZug);
+  statusEl.textContent = TEAMS[angreifer].name + ' hat den Puck';
+  const n = offene(amZug);
+  aufgabeEl.textContent = TEAMS[amZug].name + ' stellt auf — noch ' + n +
+                          (n === 1 ? ' Spieler' : ' Spieler');
 }
 
 // Jeder Stein ist ziehbar, aber nur, wenn er gerade an der Reihe ist.
@@ -188,9 +199,8 @@ function ringeAus(){
     const p = {x:0, y:0};
     machZiehbar(svg, stein, p, {
       aktiv: () => phase === 'platzieren' &&
-                   reihe[reiheNr] &&
-                   reihe[reiheNr].team === team &&
-                   reihe[reiheNr].index === index,
+                   team === amZug &&
+                   !gesetzt[team][index],
       beiBewegung: () => {},
       beiLoslassen: () => {
         const andere = alleSteine()
@@ -198,9 +208,9 @@ function ringeAus(){
           .map(s => s.p);
         if (platzFrei(p, andere, -1)){
           pos[team][index] = {x: p.x, y: p.y};
-          reiheNr++;
+          gesetzt[team][index] = true;
           zeichne();
-          naechsterStein();
+          zugWechseln();
         } else {
           // Zu nah an einem anderen Spieler — zurück auf den alten Platz.
           setze(stein, pos[team][index]);
