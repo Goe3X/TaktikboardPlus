@@ -20,7 +20,11 @@ export const AUFSTELLUNG = {
 };
 
 export const SPIELER_R   = 40;    // Radius eines Spielsteins
-export const MIN_ABSTAND = 100;   // so nah dürfen zwei Steine sich nicht kommen
+// Mindestabstand von Mittelpunkt zu Mittelpunkt beim Platzieren.
+// Genau ein Durchmesser: die Steine dürfen sich berühren, aber nicht
+// überlappen. Darunter verschmelzen sie optisch und lassen sich am
+// iPad nicht mehr einzeln greifen.
+export const MIN_ABSTAND = SPIELER_R * 2;
 
 // Wie viele Tore zum Sieg — vor dem Match einstellbar.
 export const ZIEL_AUSWAHL = [2, 3, 5];
@@ -28,6 +32,24 @@ export const ZIEL_STANDARD = 3;
 
 // Ist das Tor gedeckt, entscheidet der Würfel. Diese Augenzahlen zählen.
 export const TREFFER_AUGEN = [5, 6];
+
+// Wie weit ein Spieler in einem Spielzug wirken kann — Pass, Fahrt und
+// Schuss teilen sich diese Reichweite. Sie wird als Kreis um den
+// Puckführenden gezeichnet: was man sieht, ist was gilt.
+export const REICHWEITE = 420;
+
+// So nah darf man mit dem Puck nicht an einen Gegner heranfahren.
+// Derselbe Wert wie in Stufe 3, damit sich das Match nicht anders anfühlt.
+export const GEFAHR = 118;
+
+/** Abstand eines Punktes zur Strecke a→b (für gedeckte Schüsse). */
+export function abstandZurLinie(p, a, b){
+  const vx = b.x - a.x, vy = b.y - a.y;
+  const laenge2 = vx*vx + vy*vy || 1;
+  let t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / laenge2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t*vx), p.y - (a.y + t*vy));
+}
 
 /** Liegt ein Punkt im erlaubten Bereich und frei genug von den anderen? */
 export function platzFrei(p, andere, ausser){
