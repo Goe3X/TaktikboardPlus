@@ -34,19 +34,20 @@ const zielKnoepfe = document.getElementById('zielKnoepfe');
 const { svg, spieler } = baueEis({ pfeil: false });
 document.querySelector('.eisflaeche').appendChild(svg);
 
-function spielstein(farbe){
-  const g = svgEl('g', {class:'token'});
-  // Ring in der Mannschaftsfarbe: solange er zu sehen ist, steht dieser
-  // Spieler noch nicht.
-  g.appendChild(svgEl('circle', {r: SPIELER_R + 26, class:'wahl-ring', stroke: farbe}));
+function spielstein(farbe, team){
+  // Die Mannschaft steht als Klasse am Stein — die Ringfarbe kommt dann
+  // aus dem Stylesheet. Über ein stroke-Attribut wäre sie angreifbar:
+  // eine CSS-Regel würde es überschreiben.
+  const g = svgEl('g', {class: 'token ' + team});
+  g.appendChild(svgEl('circle', {r: SPIELER_R + 26, class:'wahl-ring'}));
   g.appendChild(svgEl('circle', {r: SPIELER_R, fill: farbe}));
   spieler.appendChild(g);
   return g;
 }
 
 const steine = {
-  gold:    [0,1,2].map(() => spielstein(FARBE.wir)),
-  violett: [0,1,2].map(() => spielstein(FARBE.geg))
+  gold:    [0,1,2].map(() => spielstein(FARBE.wir, 'gold')),
+  violett: [0,1,2].map(() => spielstein(FARBE.geg, 'violett'))
 };
 
 const puck = svgEl('g');

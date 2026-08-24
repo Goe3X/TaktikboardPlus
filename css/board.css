@@ -219,12 +219,15 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
 }
 
 /* Der Ring zeigt: dieser Spieler ist noch nicht gesetzt.
-   Volle Deckkraft wie die Spielsteine selbst — halbtransparent geht auf
-   dem hellen Eis unter, erst recht heruntergerechnet auf Handygröße.
+   Farbe kommt aus der Mannschaftszugehörigkeit, volle Deckkraft wie die
+   Spielsteine selbst — halbtransparent geht auf dem hellen Eis unter,
+   erst recht heruntergerechnet auf Handygröße.
    Wer am Zug ist, erkennt man am Pulsieren, nicht an der Deckkraft. */
 .wahl-ring{
   fill:none;stroke-width:20;stroke-dasharray:32 22;stroke-linecap:round;opacity:0;
 }
+.token.gold    .wahl-ring{stroke:var(--wir)}
+.token.violett .wahl-ring{stroke:var(--gegner)}
 .token.offen .wahl-ring{opacity:1}
 .token.offen.am-zug .wahl-ring{animation:wahlPuls 1.3s ease-in-out infinite}
 @keyframes wahlPuls{
