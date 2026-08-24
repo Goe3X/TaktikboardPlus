@@ -130,10 +130,29 @@ export function vorschauStufe4(){
   return svg;
 }
 
+// Match: Gold gegen Violett, Startaufstellung am Bully.
+export function vorschauMatch(){
+  const { svg, spieler } = baueEis({ pfeil:false, interaktiv:false });
+
+  spieler.appendChild(spielstein(430, 300, 40, FARBE.wir));
+  spieler.appendChild(spielstein(280, 170, 40, FARBE.wir));
+  spieler.appendChild(spielstein(280, 430, 40, FARBE.wir));
+  spieler.appendChild(spielstein(570, 300, 40, FARBE.geg));
+  spieler.appendChild(spielstein(720, 170, 40, FARBE.geg));
+  spieler.appendChild(spielstein(720, 430, 40, FARBE.geg));
+
+  const p = svgEl('g', {transform:'translate(500,300)'});
+  p.appendChild(svgEl('ellipse', {rx:22, ry:16, fill:'#0C1319', stroke:'#fff', 'stroke-width':5}));
+  spieler.appendChild(p);
+
+  return svg;
+}
+
 // Registry: hier kommen die nächsten Stufen dazu.
 export const VORSCHAU = {
   stufe1: vorschauStufe1,
   stufe2: vorschauStufe2,
   stufe3: vorschauStufe3,
-  stufe4: vorschauStufe4
+  stufe4: vorschauStufe4,
+  match:  vorschauMatch
 };

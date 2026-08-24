@@ -188,3 +188,72 @@ button:focus-visible,a:focus-visible{outline:4px solid #fff;outline-offset:4px}
 }
 .kachel:active{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
 .kachel svg{width:100%;height:auto;display:block;border-radius:clamp(12px,2vmin,22px)}
+
+/* --- Match ---------------------------------------------------------------- */
+
+/* Punktetafel über dem Eis */
+.tafel{
+  display:flex;align-items:center;justify-content:center;gap:.35em;
+  font-size:clamp(26px,5vmin,52px);
+  line-height:1;
+  padding-bottom:.12em;
+}
+.tafel-team{
+  min-width:1.4em;text-align:center;
+  padding:.08em .22em;border-radius:.24em;
+  color:#16212B;
+}
+.tafel-team.gold{background:var(--wir)}
+.tafel-team.violett{background:var(--gegner);color:#fff}
+.tafel-strich{opacity:.6}
+.tafel-ziel{
+  font-size:.36em;opacity:.7;text-transform:uppercase;
+  letter-spacing:.08em;margin-left:.6em;
+}
+
+/* Der Spielstein, der gerade gesetzt werden darf */
+.wahl-ring{fill:none;stroke:#fff;stroke-width:7;stroke-dasharray:20 16;opacity:0}
+.token.waehlbar .wahl-ring{opacity:.95;animation:wahlPuls 1.4s ease-in-out infinite}
+@keyframes wahlPuls{
+  0%,100%{opacity:.45}
+  50%    {opacity:1}
+}
+@media (prefers-reduced-motion:reduce){
+  .token.waehlbar .wahl-ring{animation:none;opacity:.95}
+}
+
+/* Startkarte: wie viele Tore zum Sieg */
+.start-box{
+  position:fixed;inset:0;
+  background:rgba(12,19,25,.86);
+  display:flex;align-items:center;justify-content:center;
+  padding:2em;
+}
+.start-karte{
+  background:var(--wir-tief);
+  border:clamp(4px,.8vmin,8px) solid #fff;
+  border-radius:clamp(20px,3.4vmin,36px);
+  padding:clamp(20px,4vmin,44px);
+  text-align:center;
+  box-shadow:0 clamp(6px,1.2vmin,14px) 0 rgba(0,0,0,.5);
+}
+.start-titel{font-size:clamp(20px,3.6vmin,36px);margin-bottom:.7em}
+.ziel-knoepfe{display:flex;gap:clamp(12px,2.4vmin,26px);justify-content:center}
+.ziel-knopf{
+  width:clamp(62px,10vmin,104px);height:clamp(62px,10vmin,104px);
+  border-radius:50%;
+  border:clamp(4px,.7vmin,7px) solid rgba(255,255,255,.5);
+  background:transparent;color:#fff;font:inherit;
+  font-size:clamp(24px,4vmin,44px);cursor:pointer;
+}
+.ziel-knopf.gewaehlt{background:var(--wir);color:#16212B;border-color:#fff}
+.start-knopf{
+  margin-top:1.1em;
+  border:clamp(4px,.7vmin,7px) solid #fff;
+  background:var(--wir);color:#16212B;font:inherit;
+  font-size:clamp(20px,3.2vmin,34px);
+  text-transform:uppercase;
+  padding:.4em 1.4em;border-radius:999px;cursor:pointer;
+  box-shadow:0 clamp(4px,.8vmin,9px) 0 rgba(0,0,0,.45);
+}
+.start-knopf:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.45)}
